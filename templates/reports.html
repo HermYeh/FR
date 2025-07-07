@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Reports - Attendance Database{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Attendance Reports</h1>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Filter Options</h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" class="row">
+                    <div class="col-md-3">
+                        <label for="start_date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" 
+                               value="{{ request.args.get('start_date', '') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end_date" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date"
+                               value="{{ request.args.get('end_date', '') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="employee" class="form-label">Employee</label>
+                        <input type="text" class="form-control" id="employee" name="employee"
+                               value="{{ request.args.get('employee', '') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary d-block">Filter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Attendance Records ({{ records|length }} records)</h5>
+    </div>
+    <div class="card-body">
+        {% if records %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Date</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Total Hours</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                        <tr>
+                            <td>{{ record.name }}</td>
+                            <td>{{ record.date }}</td>
+                            <td>{{ record.check_in_time or 'N/A' }}</td>
+                            <td>{{ record.check_out_time or 'N/A' }}</td>
+                            <td>{{ record.total_hours or 'N/A' }}</td>
+                            <td>{{ record.status }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p>No records found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

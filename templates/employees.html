@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Employees - Attendance Database{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Employees</h1>
+    <a href="/add_employee" class="btn btn-primary">Add Employee</a>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Employee List</h5>
+    </div>
+    <div class="card-body">
+        {% if employees %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Employee ID</th>
+                            <th>Department</th>
+                            <th>Position</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for emp in employees %}
+                        <tr>
+                            <td>{{ emp.name }}</td>
+                            <td>{{ emp.employee_id or 'N/A' }}</td>
+                            <td>{{ emp.department or 'N/A' }}</td>
+                            <td>{{ emp.position or 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p>No employees found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

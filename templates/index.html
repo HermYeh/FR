@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Home - Attendance Database{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">Face Recognition Attendance System</h1>
+        <p class="lead">Automated attendance tracking with face recognition technology.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Quick Check In</h5>
+                <p class="card-text">Record employee check-ins</p>
+                <a href="/check_in" class="btn btn-primary">Check In</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Quick Check Out</h5>
+                <p class="card-text">Record employee check-outs</p>
+                <a href="/check_out" class="btn btn-success">Check Out</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">View Reports</h5>
+                <p class="card-text">Generate attendance reports</p>
+                <a href="/reports" class="btn btn-info">Reports</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">System Status</h5>
+                <p class="card-text">Check system status</p>
+                <a href="/status" class="btn btn-warning">Status</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">System Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Face Recognition:</strong> Automatic attendance tracking when faces are recognized</p>
+                <p><strong>Daily Tracking:</strong> Each person is checked in only once per day</p>
+                <p><strong>Real-time Updates:</strong> Live attendance data and reporting</p>
+                <p><strong>Remote Access:</strong> Web interface accessible from any device</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

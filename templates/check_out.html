@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Check Out - Attendance Database{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Check Out</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Manual Check Out</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Employee Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Check Out</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
