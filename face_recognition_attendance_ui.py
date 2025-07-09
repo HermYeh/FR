@@ -499,86 +499,180 @@ Checked in today: {len(self.checked_in_today)} people"""
         if self.is_capturing:
             return
         
-        # Show integrated keyboard window
-        try:
-            from integrated_keyboard import show_integrated_keyboard
-            user_name = show_integrated_keyboard(self.root)
-        except ImportError:
-            # Fallback to simple dialog if integrated keyboard not available
-            dialog = tk.Toplevel(self.root)
-            dialog.title("Enter User Name")
-            dialog.geometry("400x150")
-            dialog.configure(bg='#2c3e50')
-            
-            # Make dialog stay on top
-            dialog.transient(self.root)
-            dialog.grab_set()
-            dialog.focus_set()
-            
-            # Position dialog at top of screen
-            dialog.update_idletasks()
-            screen_width = dialog.winfo_screenwidth()
-            x = (screen_width // 2) - (400 // 2)
-            y = 50  # Position at top with small margin
-            dialog.geometry(f"400x150+{x}+{y}")
-            
-            # Create dialog content
-            instruction_label = tk.Label(dialog, text="Please enter the name for the new user:", 
-                                       font=('Arial', 12), 
-                                       fg='#ecf0f1', bg='#2c3e50')
-            instruction_label.pack(pady=10)
-            
-            # Entry field
-            name_var = tk.StringVar()
-            name_entry = tk.Entry(dialog, textvariable=name_var, 
-                                font=('Arial', 14), 
-                                width=30, 
-                                relief=tk.RAISED, bd=3)
-            name_entry.pack(pady=10)
-            name_entry.focus()
-            
-            # Result variable
-            result = {'name': None}
-            
-            def on_confirm():
-                name = name_var.get().strip()
-                if name:
-                    result['name'] = name
-                    dialog.destroy()
-                else:
-                    messagebox.showwarning("Warning", "Please enter a name", parent=dialog)
-            
-            def on_cancel():
+        # Create a single combined popup window
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Face Recognition Training")
+        dialog.geometry("800x400")
+        dialog.configure(bg='#2c3e50')
+        
+        # Make dialog stay on top
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.focus_set()
+        
+        # Center the dialog on screen
+        dialog.update_idletasks()
+        screen_width = dialog.winfo_screenwidth()
+        screen_height = dialog.winfo_screenheight()
+        x = (screen_width // 2) - (800 // 2)
+        y = (screen_height // 2) - (400 // 2)
+        dialog.geometry(f"800x400+{x}+{y}")
+        
+        # Main container frame
+        main_frame = tk.Frame(dialog, bg='#2c3e50')
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Top section - Name entry
+        name_frame = tk.Frame(main_frame, bg='#2c3e50')
+        name_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        instruction_label = tk.Label(name_frame, text="Please enter the name for the new user:", 
+                                   font=('Arial', 14, 'bold'), 
+                                   fg='#ecf0f1', bg='#2c3e50')
+        instruction_label.pack(pady=(0, 10))
+        
+        # Entry field
+        name_var = tk.StringVar()
+        name_entry = tk.Entry(name_frame, textvariable=name_var, 
+                            font=('Arial', 16), 
+                            width=40, 
+                            relief=tk.RAISED, bd=3)
+        name_entry.pack(pady=(0, 15))
+        name_entry.focus()
+        
+        # Button frame for confirm/cancel
+        button_frame = tk.Frame(name_frame, bg='#2c3e50')
+        button_frame.pack(pady=(0, 20))
+        
+        # Result variable
+        result = {'name': None}
+        
+        def on_confirm():
+            name = name_var.get().strip()
+            if name:
+                result['name'] = name
                 dialog.destroy()
+            else:
+                messagebox.showwarning("Warning", "Please enter a name", parent=dialog)
+        
+        def on_cancel():
+            dialog.destroy()
+        
+        # Confirm button
+        confirm_button = tk.Button(button_frame, text="Confirm", command=on_confirm,
+                                 font=('Arial', 12, 'bold'),
+                                 bg='#27ae60', fg='white',
+                                 width=10, height=2,
+                                 relief=tk.RAISED, bd=3)
+        confirm_button.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Cancel button
+        cancel_button = tk.Button(button_frame, text="Cancel", command=on_cancel,
+                                font=('Arial', 12, 'bold'),
+                                bg='#e74c3c', fg='white',
+                                width=10, height=2,
+                                relief=tk.RAISED, bd=3)
+        cancel_button.pack(side=tk.LEFT)
+
+        # Bottom section - Integrated keyboard
+        keyboard_frame = tk.Frame(main_frame, bg='#2c3e50')
+        keyboard_frame.pack(fill=tk.BOTH, expand=True)
+        
+        keyboard_label = tk.Label(keyboard_frame, text="On-Screen Keyboard:", 
+                                font=('Arial', 12, 'bold'), 
+                                fg='#ecf0f1', bg='#2c3e50')
+        keyboard_label.pack(pady=(0, 10))
+        
+        # Keyboard layout
+        keyboard_rows = [
+            ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+            ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+            ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l','Enter'],
+            ['z', 'x', 'c', 'v', 'b', 'n', 'm','Space', 'Backspace', 'Clear']
+      
+        ]
+        
+        def press_key(key):
+            """Handle key press"""
+            current_text = name_var.get()
+            if key == ' ':  # Space
+                name_var.set(current_text + ' ')
+            else:
+                name_var.set(current_text + key)
+            name_entry.focus()
+        
+        def backspace():
+            """Handle backspace"""
+            current_text = name_var.get()
+            if current_text:
+                name_var.set(current_text[:-1])
+            name_entry.focus()
+        
+        def clear_text():
+            """Clear the text"""
+            name_var.set("")
+            name_entry.focus()
+        
+        def on_hover_enter(button):
+            """Handle button hover enter"""
+            button.configure(bg='#3498db')
+        
+        def on_hover_leave(button, original_color):
+            """Handle button hover leave"""
+            button.configure(bg=original_color)
+        
+        # Create keyboard buttons
+        for i, row in enumerate(keyboard_rows):
+            row_frame = tk.Frame(keyboard_frame, bg='#2c3e50')
+            row_frame.pack(fill=tk.X, pady=2)
             
-            # Button frame with confirm and cancel buttons
-            button_frame = tk.Frame(dialog, bg='#2c3e50')
-            button_frame.pack(pady=10)
-            
-            # Confirm button (always present)
-            confirm_button = tk.Button(button_frame, text="Confirm", command=on_confirm,
-                                     font=('Arial', 12, 'bold'),
-                                     bg='#27ae60', fg='white',
-                                     width=8, height=3,
-                                     relief=tk.RAISED, bd=3)
-            confirm_button.pack(side=tk.LEFT, padx=10)
-            
-            # Cancel button
-            cancel_button = tk.Button(button_frame, text="Cancel", command=on_cancel,
-                                    font=('Arial', 12, 'bold'),
-                                    bg='#e74c3c', fg='white',
-                                    width=8, height=3,
-                                    relief=tk.RAISED, bd=3)
-            cancel_button.pack(side=tk.LEFT, padx=10)
-            
-            # Bind Enter key to Confirm
-            name_entry.bind('<Return>', lambda e: on_confirm())
-            
-            # Wait for dialog to close
-            dialog.wait_window()
-            
-            # Get result
-            user_name = result['name']
+            for j, key in enumerate(row):
+                if key == 'Space':
+                    btn = tk.Button(row_frame, text=key, width=12, height=1,
+                                  font=('Arial', 10, 'bold'),
+                                  bg='#34495e', fg='white',
+                                  relief=tk.RAISED, bd=2,
+                                  command=lambda: press_key(' '))
+                    btn.bind('<Enter>', lambda e, b=btn: on_hover_enter(b))
+                    btn.bind('<Leave>', lambda e, b=btn: on_hover_leave(b, '#34495e'))
+                elif key == 'Backspace':
+                    btn = tk.Button(row_frame, text=key, width=12, height=1,
+                                  font=('Arial', 9, 'bold'),
+                                  bg='#e74c3c', fg='white',
+                                  relief=tk.RAISED, bd=2,
+                                  command=backspace)
+                    btn.bind('<Enter>', lambda e, b=btn: on_hover_enter(b))
+                    btn.bind('<Leave>', lambda e, b=btn: on_hover_leave(b, '#e74c3c'))
+                elif key == 'Clear':
+                    btn = tk.Button(row_frame, text=key, width=12, height=1,
+                                  font=('Arial', 9, 'bold'),
+                                  bg='#f39c12', fg='white',
+                                  relief=tk.RAISED, bd=2,
+                                  command=clear_text)
+                    btn.bind('<Enter>', lambda e, b=btn: on_hover_enter(b))
+                    btn.bind('<Leave>', lambda e, b=btn: on_hover_leave(b, '#f39c12'))
+                else:
+                    btn = tk.Button(row_frame, text=key.upper(), width=5, height=1,
+                                  font=('Arial', 10, 'bold'),
+                                  bg='#34495e', fg='white',
+                                  relief=tk.RAISED, bd=2,
+                                  command=lambda k=key: press_key(k))
+                    btn.bind('<Enter>', lambda e, b=btn: on_hover_enter(b))
+                    btn.bind('<Leave>', lambda e, b=btn: on_hover_leave(b, '#34495e'))
+                
+                btn.pack(side=tk.LEFT, padx=1)
+        
+        # Bind Enter key to Confirm
+        name_entry.bind('<Return>', lambda e: on_confirm())
+        
+        # Bind Escape key to Cancel
+        dialog.bind('<Escape>', lambda e: on_cancel())
+        
+        # Wait for dialog to close
+        dialog.wait_window()
+        
+        # Get result
+        user_name = result['name']
         if user_name is None or user_name.strip() == "":
             return
         user_name = user_name.strip()
@@ -586,6 +680,7 @@ Checked in today: {len(self.checked_in_today)} people"""
         # Check if user name already exists in dataset
         existing_user_id = None
         existing_ids = set()
+        
         if os.path.exists('dataset'):
             for filename in os.listdir('dataset'):
                 if filename.startswith('User.') and filename.endswith('.jpg'):
@@ -593,14 +688,14 @@ Checked in today: {len(self.checked_in_today)} people"""
                         user_id = int(filename.split('.')[1])
                         existing_ids.add(user_id)
                         
-                        # Check if this user ID has the same name
+                        # Check if this user has a name file
                         name_file = f"dataset/name_{user_id}.txt"
                         if os.path.exists(name_file):
                             with open(name_file, 'r') as f:
                                 existing_name = f.read().strip()
-                            if existing_name.lower() == user_name.lower():
-                                existing_user_id = user_id
-                                break
+                                if existing_name.lower() == user_name.lower():
+                                    existing_user_id = user_id
+                                    break
                     except:
                         continue
         
