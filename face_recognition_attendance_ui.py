@@ -283,6 +283,7 @@ class FaceRecognitionAttendanceUI:
                             # Update recognition label
                             self.recognition_label.config(text=f"Recognition: {name} ({confidence_text})")
                             
+                            
                             # Handle attendance for recognized faces
                             if name != "Unknown":
                                 self.handle_attendance(name)
@@ -335,7 +336,7 @@ class FaceRecognitionAttendanceUI:
             print(f"Video update error: {e}")
         
         # Schedule next update
-        self.root.after(10, self.update_video)
+        self.root.after(1, self.update_video)
     
     def handle_attendance(self, name):
         """Handle attendance for recognized person"""
@@ -573,23 +574,22 @@ Checked in today: {len(self.checked_in_today)} people"""
                                 width=10, height=2,
                                 relief=tk.RAISED, bd=3)
         cancel_button.pack(side=tk.LEFT)
-
+        
+        # Separator line
+        separator = tk.Frame(main_frame, height=2, bg='#34495e')
+        separator.pack(fill=tk.X, pady=(0, 15))
+        
         # Bottom section - Integrated keyboard
         keyboard_frame = tk.Frame(main_frame, bg='#2c3e50')
         keyboard_frame.pack(fill=tk.BOTH, expand=True)
-        
-        keyboard_label = tk.Label(keyboard_frame, text="On-Screen Keyboard:", 
-                                font=('Arial', 12, 'bold'), 
-                                fg='#ecf0f1', bg='#2c3e50')
-        keyboard_label.pack(pady=(0, 10))
+    
         
         # Keyboard layout
         keyboard_rows = [
             ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
             ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
             ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l','Enter'],
-            ['z', 'x', 'c', 'v', 'b', 'n', 'm','Space', 'Backspace', 'Clear']
-      
+            ['z', 'x', 'c', 'v', 'b', 'n', 'm','Space', '<--', 'Clear']
         ]
         
         def press_key(key):
@@ -628,29 +628,37 @@ Checked in today: {len(self.checked_in_today)} people"""
             
             for j, key in enumerate(row):
                 if key == 'Space':
-                    btn = tk.Button(row_frame, text=key, width=12, height=1,
+                    btn = tk.Button(row_frame, text=key, width=5, height=1,
                                   font=('Arial', 10, 'bold'),
                                   bg='#34495e', fg='white',
                                   relief=tk.RAISED, bd=2,
                                   command=lambda: press_key(' '))
                     btn.bind('<Enter>', lambda e, b=btn: on_hover_enter(b))
                     btn.bind('<Leave>', lambda e, b=btn: on_hover_leave(b, '#34495e'))
-                elif key == 'Backspace':
-                    btn = tk.Button(row_frame, text=key, width=12, height=1,
-                                  font=('Arial', 9, 'bold'),
-                                  bg='#e74c3c', fg='white',
+                elif key == '<--':
+                    btn = tk.Button(row_frame, text=key, width=5, height=1,
+                                  font=('Arial', 10, 'bold'),
+                                  bg='#34495e', fg='white',
                                   relief=tk.RAISED, bd=2,
                                   command=backspace)
                     btn.bind('<Enter>', lambda e, b=btn: on_hover_enter(b))
-                    btn.bind('<Leave>', lambda e, b=btn: on_hover_leave(b, '#e74c3c'))
+                    btn.bind('<Leave>', lambda e, b=btn: on_hover_leave(b, '#34495e'))
+                elif key == 'Enter':
+                    btn = tk.Button(row_frame, text=key, width=5, height=1,
+                                  font=('Arial', 10, 'bold'),
+                                  bg='#34495e', fg='white',
+                                  relief=tk.RAISED, bd=2,
+                                  command=backspace)
+                    btn.bind('<Enter>', lambda e, b=btn: on_hover_enter(b))
+                    btn.bind('<Leave>', lambda e, b=btn: on_hover_leave(b, '#34495e'))
                 elif key == 'Clear':
-                    btn = tk.Button(row_frame, text=key, width=12, height=1,
-                                  font=('Arial', 9, 'bold'),
-                                  bg='#f39c12', fg='white',
+                    btn = tk.Button(row_frame, text=key, width=5, height=1,
+                                  font=('Arial', 10, 'bold'),
+                                  bg='#34495e', fg='white',
                                   relief=tk.RAISED, bd=2,
                                   command=clear_text)
                     btn.bind('<Enter>', lambda e, b=btn: on_hover_enter(b))
-                    btn.bind('<Leave>', lambda e, b=btn: on_hover_leave(b, '#f39c12'))
+                    btn.bind('<Leave>', lambda e, b=btn: on_hover_leave(b, '#34495e'))
                 else:
                     btn = tk.Button(row_frame, text=key.upper(), width=5, height=1,
                                   font=('Arial', 10, 'bold'),
