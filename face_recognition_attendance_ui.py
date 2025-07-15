@@ -1023,7 +1023,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         content_frame.pack(fill=tk.BOTH, expand=True)
         
         # Left section - Date/Employee List
-        self.create_checkin_left_section(content_frame)
+        self.create_checkin_left_sections(content_frame)
         
         # Right section - Check-in Photo
         self.create_checkin_right_section(content_frame)
@@ -1034,23 +1034,37 @@ class OptimizedFaceRecognitionAttendanceUI:
         # Load initial data
         self.load_checkin_dates()
     
-    def create_checkin_left_section(self, parent):
-        """Create left section for dates/employees"""
-        # Left frame
-        left_frame = tk.Frame(parent, bg='#2c3e50')
-        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+    def create_checkin_left_sections(self, parent):
+        """Create left sections for dates (upper) and employees (lower)"""
+        # Left container frame
+        left_container = tk.Frame(parent, bg='#2c3e50')
+        left_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         
-        # Dynamic header frame
-        self.left_header_frame = tk.Frame(left_frame, bg='#2c3e50')
-        self.left_header_frame.pack(fill=tk.X, pady=(0, 10))
+        # Upper left section - Dates
+        self.create_dates_section(left_container)
         
-        # List container
-        list_container = tk.Frame(left_frame, bg='#2c3e50')
-        list_container.pack(fill=tk.BOTH, expand=True)
+        # Lower left section - Employees
+        self.create_employees_section(left_container)
+    
+    def create_dates_section(self, parent):
+        """Create upper left section for dates"""
+        # Date section frame
+        date_frame = tk.Frame(parent, bg='#2c3e50')
+        date_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
-        # Main listbox
-        self.checkin_listbox = tk.Listbox(list_container, 
-                                         font=('Arial', 14, 'bold'),
+        # Date header
+        date_header = tk.Label(date_frame, text="Check-in Dates", 
+                              font=('Arial', 14, 'bold'), 
+                              fg='#ecf0f1', bg='#2c3e50')
+        date_header.pack(pady=(0, 10))
+        
+        # Date list container
+        date_list_container = tk.Frame(date_frame, bg='#2c3e50')
+        date_list_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Date listbox
+        self.checkin_listbox = tk.Listbox(date_list_container, 
+                                         font=('Arial', 12, 'bold'),
                                          bg='#34495e', 
                                          fg='#ecf0f1',
                                          selectbackground='#3498db',
@@ -1058,17 +1072,127 @@ class OptimizedFaceRecognitionAttendanceUI:
                                          relief=tk.SUNKEN,
                                          bd=2)
         
-        # Scrollbar
-        checkin_scrollbar = tk.Scrollbar(list_container, orient=tk.VERTICAL, 
-                                        command=self.checkin_listbox.yview)
-        self.checkin_listbox.config(yscrollcommand=checkin_scrollbar.set)
+        # Date scrollbar
+        date_scrollbar = tk.Scrollbar(date_list_container, orient=tk.VERTICAL, 
+                                     command=self.checkin_listbox.yview)
+        self.checkin_listbox.config(yscrollcommand=date_scrollbar.set)
         
-        # Pack components
+        # Pack date components
         self.checkin_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        checkin_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        date_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Bind selection event
-        self.checkin_listbox.bind('<<ListboxSelect>>', self.on_checkin_item_select)
+        self.checkin_listbox.bind('<<ListboxSelect>>', self.on_date_select)
+    
+    def create_employees_section(self, parent):
+        """Create lower left section for employees"""
+        # Employee section frame
+        employee_frame = tk.Frame(parent, bg='#2c3e50')
+        employee_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Employee header
+        self.employee_header = tk.Label(employee_frame, text="Employees (Select a date)", 
+                                       font=('Arial', 14, 'bold'), 
+                                       fg='#ecf0f1', bg='#2c3e50')
+        self.employee_header.pack(pady=(0, 10))
+        
+        # Employee list container
+        employee_list_container = tk.Frame(employee_frame, bg='#2c3e50')
+        employee_list_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Employee listbox
+        self.employee_listbox = tk.Listbox(employee_list_container, 
+                                          font=('Arial', 12),
+                                          bg='#34495e', 
+                                          fg='#ecf0f1',
+                                          selectbackground='#27ae60',
+                                          selectforeground='white',
+                                          relief=tk.SUNKEN,
+                                          bd=2)
+        
+        # Employee scrollbar
+        employee_scrollbar = tk.Scrollbar(employee_list_container, orient=tk.VERTICAL, 
+                                         command=self.employee_listbox.yview)
+        self.employee_listbox.config(yscrollcommand=employee_scrollbar.set)
+        
+        # Pack employee components
+        self.employee_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        employee_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Bind selection event
+        self.employee_listbox.bind('<<ListboxSelect>>', self.on_employee_select)
+        
+        # Initial message
+        self.employee_listbox.insert(tk.END, "Select a date to view employees")
+    
+    def on_date_select(self, event):
+        """Handle date selection"""
+        selection = self.checkin_listbox.curselection()
+        if not selection:
+            return
+        
+        index = selection[0]
+        if index < len(self.checkin_dates_data):
+            selected_date = self.checkin_dates_data[index]
+            self.load_employees_for_selected_date(selected_date)
+    
+    def on_employee_select(self, event):
+        """Handle employee selection"""
+        selection = self.employee_listbox.curselection()
+        if not selection:
+            return
+        
+        index = selection[0]
+        if hasattr(self, 'employee_checkin_data') and index < len(self.employee_checkin_data):
+            selected_record = self.employee_checkin_data[index]
+            self.show_checkin_photo(selected_record)
+    
+    def load_employees_for_selected_date(self, selected_date):
+        """Load employees for the selected date"""
+        try:
+            if not self.attendance_db:
+                messagebox.showwarning("Warning", "Attendance database not available")
+                return
+
+            # Get check-ins for selected date
+            records = self.attendance_db.get_attendance_report(selected_date, selected_date)
+            checkins = [r for r in records if r.get('check_in_time')]
+
+            # Update employee header
+            try:
+                formatted_date = datetime.strptime(selected_date, '%Y-%m-%d').strftime('%B %d, %Y')
+            except:
+                formatted_date = selected_date
+            self.employee_header.config(text=f"Employees on {formatted_date}")
+            
+            # Clear and populate employee listbox
+            self.employee_listbox.delete(0, tk.END)
+            self.employee_checkin_data = checkins
+            
+            if not checkins:
+                self.employee_listbox.insert(tk.END, "No check-ins found for this date")
+                return
+            
+            # Sort by check-in time
+            checkins.sort(key=lambda x: x['check_in_time'])
+            
+            # Add employees to listbox
+            for record in checkins:
+                name = record['name']
+                check_in_time = record['check_in_time']
+                
+                # Format time
+                try:
+                    time_obj = datetime.strptime(check_in_time, "%Y-%m-%d %H:%M:%S")
+                    formatted_time = time_obj.strftime("%H:%M:%S")
+                except:
+                    formatted_time = check_in_time
+                
+                display_text = f"{name} - {formatted_time}"
+                self.employee_listbox.insert(tk.END, display_text)
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load employees for date: {e}")
     
     def create_checkin_right_section(self, parent):
         """Create right section for check-in photos"""
@@ -1177,9 +1301,6 @@ class OptimizedFaceRecognitionAttendanceUI:
             end_idx = start_idx + self.dates_per_page
             page_dates = sorted_dates[start_idx:end_idx]
             
-            # Update header
-            self.update_left_header("Check-in Dates", f"Recent dates with check-ins")
-            
             # Clear and populate listbox
             self.checkin_listbox.delete(0, tk.END)
             self.checkin_dates_data = page_dates
@@ -1213,75 +1334,7 @@ class OptimizedFaceRecognitionAttendanceUI:
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load check-in dates: {e}")
-    
-    def load_employees_for_date(self, selected_date):
-        """Load employees for selected date"""
-        try:
-            if not self.attendance_db:
-                messagebox.showwarning("Warning", "Attendance database not available")
-                return
-
-            # Get check-ins for selected date
-            records = self.attendance_db.get_attendance_report(selected_date, selected_date)
-            checkins = [r for r in records if r.get('check_in_time')]
-
-            # Update header
-            try:
-                formatted_date = datetime.strptime(selected_date, '%Y-%m-%d').strftime('%B %d, %Y')
-            except Exception:
-                formatted_date = selected_date
-            self.update_left_header("Employees", f"Check-ins on {formatted_date}")
-            
-            # Clear and populate listbox
-            self.checkin_listbox.delete(0, tk.END)
-            self.checkin_employees_data = checkins
-            
-            if not checkins:
-                self.checkin_listbox.insert(tk.END, "No check-ins found")
-                return
-            
-            # Sort by check-in time
-            checkins.sort(key=lambda x: x['check_in_time'])
-            
-            # Add employees to listbox
-            for record in checkins:
-                name = record['name']
-                check_in_time = record['check_in_time']
-                
-                # Format time
-                try:
-                    time_obj = datetime.strptime(check_in_time, "%Y-%m-%d %H:%M:%S")
-                    formatted_time = time_obj.strftime("%H:%M:%S")
-                except:
-                    formatted_time = check_in_time
-                
-                display_text = f"{name} - {formatted_time}"
-                self.checkin_listbox.insert(tk.END, display_text)
-            
-            # Set current view
-            self.current_view = "employees"
-            self.selected_date = selected_date
-            self.show_back_button()
-            self.hide_pagination_controls()
-            
-        except Exception as e:
             messagebox.showerror("Error", f"Failed to load employees for date: {e}")
-    
-    def on_checkin_item_select(self, event):
-        """Handle selection in check-in listbox"""
-        selection = self.checkin_listbox.curselection()
-        if not selection:
-            return
-        
-        index = selection[0]
-        
-        if self.current_view == "dates":
-            # Date selected - only select, don't do anything else
-            # The user can use the back button to navigate
-            pass
-        elif self.current_view == "employees":
-            # Employee selected - show their check-in photo
-            if index < len(self.checkin_employees_data):
                 selected_record = self.checkin_employees_data[index]
                 self.show_checkin_photo(selected_record)
     
