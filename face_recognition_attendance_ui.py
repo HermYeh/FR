@@ -1005,7 +1005,6 @@ class OptimizedFaceRecognitionAttendanceUI:
         # Initialize state variables
         self.current_page = 0
         self.dates_per_page = 30
-        self.current_view = "dates"  # "dates" or "employees"
         self.selected_date = None
         
         # Main container
@@ -1329,15 +1328,10 @@ class OptimizedFaceRecognitionAttendanceUI:
             self.update_pagination_controls(len(sorted_dates))
             
             # Set current view
-            self.current_view = "dates"
             self.hide_back_button()
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load check-in dates: {e}")
-            messagebox.showerror("Error", f"Failed to load employees for date: {e}")
-                selected_record = self.checkin_employees_data[index]
-                self.show_checkin_photo(selected_record)
-    
     def show_checkin_photo(self, record):
         """Show check-in photo for selected employee"""
         # Clear previous content
@@ -1504,7 +1498,6 @@ class OptimizedFaceRecognitionAttendanceUI:
     
     def back_to_dates(self):
         """Go back to dates view"""
-        self.current_view = "dates"
         self.selected_date = None
         self.show_no_photo_message()
         self.hide_back_button()
