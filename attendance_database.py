@@ -70,7 +70,7 @@ class AttendanceDatabase:
     def add_employee(self, name: str, employee_id: Optional[str] = None, 
                     department: Optional[str] = None, position: Optional[str] = None) -> bool:
         """Add a new employee to the database"""
-        if self.cursor is None:
+        if self.conn is None or self.cursor is None:
             print("Database not initialized")
             return False
         try:
@@ -90,7 +90,7 @@ class AttendanceDatabase:
     
     def get_employees(self) -> List[Dict]:
         """Get all active employees"""
-        if self.cursor is None:
+        if self.conn is None or self.cursor is None:
             print("Database not initialized")
             return []
         try:
@@ -114,8 +114,11 @@ class AttendanceDatabase:
             print(f"Error getting employees: {e}")
             return []
     
-    def check_in(self, name: str, check_in_time: str = None) -> bool:
+    def check_in(self, name: str, check_in_time: Optional[str] = None) -> bool:
         """Record check-in for an employee"""
+        if self.conn is None or self.cursor is None:
+            print("Database not initialized")
+            return False
         try:
             if check_in_time is None:
                 check_in_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -146,8 +149,11 @@ class AttendanceDatabase:
             print(f"Error during check-in: {e}")
             return False
     
-    def check_out(self, name: str, check_out_time: str = None) -> bool:
+    def check_out(self, name: str, check_out_time: Optional[str] = None) -> bool:
         """Record check-out for an employee"""
+        if self.conn is None or self.cursor is None:
+            print("Database not initialized")
+            return False
         try:
             if check_out_time is None:
                 check_out_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -187,9 +193,40 @@ class AttendanceDatabase:
             print(f"Error during check-out: {e}")
             return False
     
-    def get_attendance_report(self, start_date: str = None, end_date: str = None, 
-                            employee_name: str = None) -> List[Dict]:
+    def delete_checkin(self, name: str, check_in_time: str) -> bool:
+        """Delete a specific check-in record"""
+        if self.conn is None or self.cursor is None:
+            print("Database not initialized")
+            return False
+        try:
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            
+            # Find and delete the specific check-in record
+            self.cursor.execute('''
+                DELETE FROM attendance 
+                WHERE name = ? AND date = ? AND check_in_time = ?
+            ''', (name, current_date, check_in_time))
+            
+            rows_affected = self.cursor.rowcount
+            self.conn.commit()
+            
+            if rows_affected > 0:
+                print(f"Deleted check-in for {name} at {check_in_time}")
+                return True
+            else:
+                print(f"No check-in record found for {name} at {check_in_time}")
+                return False
+                
+        except Exception as e:
+            print(f"Error deleting check-in: {e}")
+            return False
+    
+    def get_attendance_report(self, start_date: Optional[str] = None, end_date: Optional[str] = None, 
+                            employee_name: Optional[str] = None) -> List[Dict]:
         """Get attendance report with optional filters"""
+        if self.conn is None or self.cursor is None:
+            print("Database not initialized")
+            return []
         try:
             query = '''
                 SELECT name, date, check_in_time, check_out_time, total_hours, status
@@ -229,8 +266,11 @@ class AttendanceDatabase:
             print(f"Error getting attendance report: {e}")
             return []
     
-    def get_daily_summary(self, target_date: str = None) -> Dict:
+    def get_daily_summary(self, target_date: Optional[str] = None) -> Dict:
         """Get daily attendance summary"""
+        if self.conn is None or self.cursor is None:
+            print("Database not initialized")
+            return {}
         try:
             if target_date is None:
                 target_date = datetime.now().strftime("%Y-%m-%d")
@@ -271,6 +311,9 @@ class AttendanceDatabase:
     
     def import_from_csv(self, csv_file: str) -> bool:
         """Import attendance data from CSV file"""
+        if self.conn is None or self.cursor is None:
+            print("Database not initialized")
+            return False
         try:
             if not os.path.exists(csv_file):
                 print(f"CSV file not found: {csv_file}")
@@ -314,8 +357,11 @@ class AttendanceDatabase:
             print(f"Error importing from CSV: {e}")
             return False
     
-    def export_to_csv(self, filename: str, start_date: str = None, end_date: str = None) -> bool:
+    def export_to_csv(self, filename: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> bool:
         """Export attendance data to CSV"""
+        if self.conn is None or self.cursor is None:
+            print("Database not initialized")
+            return False
         try:
             records = self.get_attendance_report(start_date, end_date)
             
@@ -343,17 +389,22 @@ class AttendanceDatabase:
     
     def get_employee_attendance(self, employee_name: str, days: int = 30) -> List[Dict]:
         """Get attendance history for a specific employee"""
+        if self.conn is None or self.cursor is None:
+            print("Database not initialized")
+            return []
         try:
             end_date = datetime.now().strftime("%Y-%m-%d")
             if pd is not None:
-                start_date = (datetime.now() - pd.Timedelta(days=days)).strftime("%Y-%m-%d")
+                try:
+                    from datetime import timedelta
+                    start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+                except (AttributeError, TypeError, ValueError):
+                    # Fallback: use current date
+                    start_date = datetime.now().strftime("%Y-%m-%d")
             else:
-                # Fallback without pandas
                 from datetime import timedelta
                 start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-            
             return self.get_attendance_report(start_date, end_date, employee_name)
-            
         except Exception as e:
             print(f"Error getting employee attendance: {e}")
             return []
