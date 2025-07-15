@@ -381,6 +381,10 @@ class OptimizedFaceRecognitionAttendanceUI:
     
     def show_main_menu_window(self):
         """Show the main menu window with all functionality"""
+
+        # Disable menu button to prevent multiple clicks
+        self.menu_button.config(state=tk.DISABLED)
+        
         # Pause video processing
         self.video_paused = True
         print("Video processing paused for menu")
@@ -397,7 +401,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         # Make window modal
         self.menu_window.focus()
         
-        # Bind window close event to resume video
+        # Bind window close event to resume video and re-enable menu button
         self.menu_window.protocol("WM_DELETE_WINDOW", self.close_menu_window)
         
         # Main container
@@ -549,6 +553,10 @@ class OptimizedFaceRecognitionAttendanceUI:
         if hasattr(self, 'menu_window'):
             self.menu_window.destroy()
             delattr(self, 'menu_window')
+        
+        # Re-enable menu button (with safety check)
+        if hasattr(self, 'menu_button') and self.menu_button.winfo_exists():
+            self.menu_button.config(state=tk.NORMAL)
         
         # Resume video processing
         self.video_paused = False
@@ -1603,13 +1611,65 @@ Database location and connection details can be found in attendance_database.py"
         result = messagebox.askyesno("Reset System", 
                                    "Are you sure you want to reset the system?\n\n"
                                    "This will:\n"
-                                   "• Clear all face recognition data\n"
-                                   "• Reset camera settings\n"
-                                   "• Clear attendance cache\n\n"
+                                   "• Delete all face recognition data\n"
+                                   "• Delete all training images\n"
+                                   "• Delete all check-in photos\n"
+                                   "• Delete all trainer files\n"
+                                   "• Delete attendance database\n"
+                                   "• Reload the system\n\n"
                                    "This action cannot be undone.")
         
         if result:
             try:
+                # Delete contents of folders
+                import shutil
+                
+                folders_to_clear = ['CheckinPhoto', 'dataset', 'trainer']
+                deleted_items = []
+                
+                for folder in folders_to_clear:
+                    if os.path.exists(folder):
+                        # Get count of items before deletion
+                        item_count = 0
+                        for root, dirs, files in os.walk(folder):
+                            item_count += len(files)
+                        
+                        # Delete all contents
+                        for item in os.listdir(folder):
+                            item_path = os.path.join(folder, item)
+                            if os.path.isdir(item_path):
+                                shutil.rmtree(item_path)
+                            else:
+                                os.remove(item_path)
+                        
+                        if item_count > 0:
+                            deleted_items.append(f"{folder}: {item_count} items")
+                        print(f"Cleared {folder} folder ({item_count} items)")
+                
+                # Delete attendance database
+                if self.attendance_db:
+                    try:
+                        # Close database connection first
+                        self.attendance_db.close()
+                        self.attendance_db = None
+                        
+                        # Delete database file
+                        db_files = ["attendance.db", "attendance.db-journal", "attendance.db-wal", "attendance.db-shm"]
+                        db_deleted = False
+                        
+                        for db_file in db_files:
+                            if os.path.exists(db_file):
+                                os.remove(db_file)
+                                db_deleted = True
+                                print(f"Deleted database file: {db_file}")
+                        
+                        if db_deleted:
+                            deleted_items.append("Database: All attendance records")
+                            
+                    except Exception as db_error:
+                        print(f"Error deleting database: {db_error}")
+                        deleted_items.append("Database: Error deleting (may need manual cleanup)")
+                
                 # Clear face embeddings
                 self.face_embeddings = {}
                 self.save_face_embeddings()
@@ -1620,13 +1680,32 @@ Database location and connection details can be found in attendance_database.py"
                 # Reset tracking
                 self.tracked_faces.clear()
                 
-                # Refresh model
+                # Clear names list
+                self.names = []
+                
+                # Reload system components
+                self.load_face_embeddings()
+                self.update_names_list({})
                 self.refresh_model()
                 
-                messagebox.showinfo("Reset Complete", "System has been reset successfully.")
+                # Reinitialize attendance database
+                self.initialize_attendance_database()
+                
+                # Reload check-ins display
+                self.load_existing_checkins()
+                
+                # Success message with details
+                details = "\n".join(deleted_items) if deleted_items else "No items to delete"
+                messagebox.showinfo("Reset Complete", 
+                                  f"System has been reset successfully.\n\n"
+                                  f"Deleted items:\n{details}\n\n"
+                                  f"System has been reloaded.")
+                
+                print("System reset completed successfully")
                 
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to reset system: {e}")
+                print(f"Error during system reset: {e}")
     
     def edit_todays_checkins(self):
         """Edit today's check-ins with video pause and deletion options"""
