@@ -635,7 +635,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         employee_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Bind selection event
-        self.employee_listbox.bind('<<ListboxSelect>>', self.on_employee_select)
+        self.employee_listbox.bind('<<ListboxSelect>>', self.on_employee_detail_select)
     
     def create_employee_details_section(self, parent):
         """Create employee details section on the right"""
@@ -720,7 +720,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load employee data: {e}")
     
-    def on_employee_select(self, event):
+    def on_employee_detail_select(self, event):
         """Handle employee selection"""
         selection = self.employee_listbox.curselection()
         if not selection:
@@ -1450,24 +1450,7 @@ class OptimizedFaceRecognitionAttendanceUI:
                                 justify=tk.CENTER)
         message_label.pack(expand=True)
     
-    def update_left_header(self, title, subtitle):
-        """Update the left section header"""
-        # Clear existing widgets
-        for widget in self.left_header_frame.winfo_children():
-            widget.destroy()
-        
-        # Title
-        title_label = tk.Label(self.left_header_frame, text=title, 
-                              font=('Arial', 14, 'bold'), 
-                              fg='#ecf0f1', bg='#2c3e50')
-        title_label.pack(anchor=tk.W)
-        
-        # Subtitle
-        subtitle_label = tk.Label(self.left_header_frame, text=subtitle, 
-                                 font=('Arial', 10), 
-                                 fg='#bdc3c7', bg='#2c3e50')
-        subtitle_label.pack(anchor=tk.W)
-    
+   
     def update_pagination_controls(self, total_items):
         """Update pagination controls"""
         total_pages = (total_items + self.dates_per_page - 1) // self.dates_per_page
