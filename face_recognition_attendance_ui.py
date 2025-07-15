@@ -68,11 +68,10 @@ class CustomDialog:
     def _show_dialog(parent, title, message, dialog_type):
         """Internal method to create and show dialog"""
         dialog = tk.Toplevel(parent)
-        dialog.grab_set()
         dialog.title(title)
         dialog.configure(bg='#2c3e50')
         dialog.resizable(False, False)
-
+        dialog.transient(parent)
         
         # Center dialog
         dialog.update_idletasks()
@@ -641,13 +640,16 @@ class OptimizedFaceRecognitionAttendanceUI:
                                     command=self.show_main_menu_window)
         #self.menu_button.config(command=self.prevent_multiple_clicks(self.menu_button, self.show_main_menu_window, "menu_btn", restore_on_window_close=True))
         self.menu_button.pack(padx=5, pady=5)
-
+    def popup(self):
+        self.show_main_menu_window()
+        self.root.wait_window(self)
 
     def show_main_menu_window(self):
+
         self.menu_window = tk.Toplevel(self.root)
+        self.menu_window.grab_set()  
         self.menu_window.transient(self.root)
-        # Disable menu button to prevent multiple clicks
-   
+
         
         # Pause video processing
         self.video_paused = True
@@ -670,12 +672,14 @@ class OptimizedFaceRecognitionAttendanceUI:
         self.menu_window.resizable(True, True)
         self.menu_window.minsize(800, 600)  # Set minimum size
         # Center the window
-
+        self.show_menu()
        
-        # Main container
+       
+    def show_menu(self):
+         # Main container
         main_frame = tk.Frame(self.menu_window, bg='#2c3e50')
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-        
+    
         # Title (larger font)
         title_label = tk.Label(main_frame, text="Main Menu", 
                               font=('Arial', 28, 'bold'), 
@@ -687,7 +691,8 @@ class OptimizedFaceRecognitionAttendanceUI:
         self.create_edit_section(main_frame)
         self.create_settings_section(main_frame)
         self.create_system_section(main_frame)
-    
+
+
     def create_employee_section(self, parent):
         """Create Employee Check-in Details section"""
         # Section frame (larger font)
@@ -707,13 +712,13 @@ class OptimizedFaceRecognitionAttendanceUI:
         
         # Single Employee Check-in Details button with click protection
         employee_detail_btn = tk.Button(buttons_frame, text="👥 Employee Details", 
-                                       command=self.show_employee_detail_window,
+                                       command=lambda: self.show_employee(parent),
                                        bg='#3498db', fg='white', **button_config)
         employee_detail_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Additional utility buttons with click protection
         photos_btn = tk.Button(buttons_frame, text="📸 Check-in Details", 
-                              command=self.show_checkin_photos,
+                              command=self.show_checkin,
                               bg='#e67e22', fg='white', **button_config)
         photos_btn.pack(side=tk.LEFT, padx=(0, 10))
         
@@ -742,10 +747,16 @@ class OptimizedFaceRecognitionAttendanceUI:
         
         # Edit Today's Check-ins button with click protection
         edit_btn = tk.Button(buttons_frame, text="✏️ Edit Today's Check-ins", 
-                            command=self.edit_todays_checkins,
+                            command=self.show_edit,
                             bg='#e74c3c', fg='white', **button_config)
         edit_btn.pack(side=tk.LEFT)
-    
+    def show_edit(self):
+        # Clear the current frame and show edit interface
+        for widget in self.menu_window.winfo_children():
+            widget.destroy()
+        self.edit_todays_checkins()
+
+
     def create_settings_section(self, parent):
         """Create Settings section"""
         # Section frame (larger font)
@@ -822,25 +833,20 @@ class OptimizedFaceRecognitionAttendanceUI:
         self.video_paused = False
         print("Video processing resumed")
     
+    def show_employee(self,parent):
+        parent.destroy()
+        self.show_employee_detail_window()
+    
     def show_employee_detail_window(self):
-        self.employee_detail_window = tk.Toplevel(self.root)
-        self.employee_detail_window.grab_set()
+  
 
         """Show comprehensive employee detail window"""
         if not self.attendance_db:
             CustomDialog.show_warning(self.root, "Warning", "Attendance database not available")
             return
         
-        # Create employee detail window
-        
-        self.employee_detail_window.title("Employee Check-in Details")
-        self.employee_detail_window.geometry("1000x700")
-        self.employee_detail_window.configure(bg='#2c3e50')
-        # Center the window
-        self.employee_detail_window.transient(self.root)
-
-        # Main container
-        main_frame = tk.Frame(self.employee_detail_window, bg='#2c3e50')
+         # Main container
+        main_frame = tk.Frame(self.menu_window, bg='#2c3e50')
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         # Title (larger font)
         title_label = tk.Label(main_frame, text="Employee Check-in Details", 
@@ -925,14 +931,14 @@ class OptimizedFaceRecognitionAttendanceUI:
     def create_employee_window_buttons(self, parent):
         """Create buttons for employee window"""
         button_frame = tk.Frame(parent, bg='#2c3e50')
-        button_frame.pack(fill=tk.X, pady=(20, 0))
+        button_frame.pack(fill=tk.X, pady=(10, 0))
         
         # Today's Check-ins button (larger font) with click protection
         today_btn = tk.Button(button_frame, text="📊 Today's Check-ins", 
                              command=self.show_todays_checkins,
                              font=('Arial', 14, 'bold'),
                              bg='#3498db', fg='white',
-                             width=20, height=2,
+                             width=15, height=2,
                              relief=tk.RAISED, bd=2)
         today_btn.pack(side=tk.LEFT, padx=(0, 10))
         
@@ -948,13 +954,19 @@ class OptimizedFaceRecognitionAttendanceUI:
         
         # Close button (larger font) with click protection
         close_btn = tk.Button(button_frame, text="❌ Close", 
-                             command=self.employee_detail_window.destroy,
+                             command=self.close_employee_window,
                              font=('Arial', 14, 'bold'),
                              bg='#95a5a6', fg='white',
                              width=15, height=2,
                              relief=tk.RAISED, bd=2)
         close_btn.pack(side=tk.RIGHT)
-    
+    def close_employee_window(self):
+        # Clear the current frame and show main menu
+        for widget in self.menu_window.winfo_children():
+            widget.destroy()
+        self.show_menu()
+
+
     def load_employee_data(self):
 
         """Load employee data into the listbox"""
@@ -1244,20 +1256,18 @@ class OptimizedFaceRecognitionAttendanceUI:
         except Exception as e:
             CustomDialog.show_error(self.root,"Error", f"Failed to get employee list: {e}")
     
+    def show_checkin(self):
+        # Clear the current frame and show checkin photos interface
+        for widget in self.menu_window.winfo_children():
+            widget.destroy()
+        self.show_checkin_photos()
+
     def show_checkin_photos(self):
-        self.checkin_details_window = tk.Toplevel(self.root)
-        self.checkin_details_window.grab_set()
+
         if not self.attendance_db:
             CustomDialog.show_warning(self.root, "Warning", "Attendance database not available")
             return
-        
-        # Create check-in details window
-       
-        self.checkin_details_window.title("Check-in Details")
-        self.checkin_details_window.geometry("1200x800")
-        self.checkin_details_window.configure(bg='#2c3e50')
-        # Center the window
-        self.checkin_details_window.transient(self.root)
+
         # Bind window close event
         # Initialize state variables
         self.current_page = 0
@@ -1265,7 +1275,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         self.selected_date = None
         
         # Main container
-        main_frame = tk.Frame(self.checkin_details_window, bg='#2c3e50')
+        main_frame = tk.Frame(self.menu_window, bg='#2c3e50')
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
         # Title (larger font)
@@ -1527,13 +1537,20 @@ class OptimizedFaceRecognitionAttendanceUI:
         
         # Close button
         close_btn = tk.Button(control_frame, text="❌ Close", 
-                             command=self.checkin_details_window.destroy,
+                             command=self.close_checkin,
                              font=('Arial', 10, 'bold'),
                              bg='#e74c3c', fg='white',
                              width=20, height=2,
                              relief=tk.RAISED, bd=2)
         close_btn.pack(side=tk.RIGHT)
-    
+    def close_checkin(self):
+        # Clear the current frame and show main menu
+        for widget in self.menu_window.winfo_children():
+            widget.destroy()
+        self.show_menu()
+
+
+
     def load_checkin_dates(self):
         """Load check-in dates with pagination"""
         if not self.attendance_db:
@@ -1980,22 +1997,9 @@ Database location and connection details can be found in attendance_database.py"
            
     
     def create_edit_checkins_window(self, checkins):
-        """Create window for editing check-ins"""
-        # Create edit window
-        self.edit_window = tk.Toplevel(self.root)
-        self.edit_window.grab_set()
-        self.edit_window.title("Edit Today's Check-ins")
-        self.edit_window.geometry("600x800")
-        self.edit_window.configure(bg='#2c3e50')
-        
-        # Center the window
-        #self.edit_window.transient(self.root)
-        
-        # Make window modal
-        #self.edit_window.focus()
-        
+    
         # Main container
-        main_frame = tk.Frame(self.edit_window, bg='#2c3e50')
+        main_frame = tk.Frame(self.menu_window, bg='#2c3e50')
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
         # Title (larger font)
@@ -2061,7 +2065,7 @@ Database location and connection details can be found in attendance_database.py"
         
         # Close button (larger font) with click protection
         close_button = tk.Button(button_frame, text="Close", 
-                               command=self.edit_window.destroy,
+                               command=self.close_edit_window,
                                font=('Arial', 16, 'bold'),
                                bg='#95a5a6', fg='white',
                                relief=tk.RAISED, bd=3,
@@ -2073,7 +2077,12 @@ Database location and connection details can be found in attendance_database.py"
         
         # Store checkins data for reference
         self.edit_checkins_data = checkins
-    
+    def close_edit_window(self):
+        # Clear the current frame and show main menu
+        for widget in self.menu_window.winfo_children():
+            widget.destroy()
+        self.show_menu()
+
     def populate_checkins_listbox(self, checkins):
         """Populate the listbox with check-in entries"""
         self.checkins_listbox.delete(0, tk.END)
@@ -2126,6 +2135,8 @@ Database location and connection details can be found in attendance_database.py"
         name = record_to_delete['name']
         check_in_time = record_to_delete['check_in_time']
         
+        print(f"Deleting check-in for {name} at {check_in_time}")
+
         # Format time for display
         if isinstance(check_in_time, str):
             try:
@@ -2161,9 +2172,13 @@ Database location and connection details can be found in attendance_database.py"
                     
                     CustomDialog.show_info(self.root,"Success", f"Check-in for {name} has been deleted.")
                     
-                    # If no more check-ins, close the window
+                    # If no more check-ins, go back to main menu
                     if not self.edit_checkins_data:
-                        self.edit_window.destroy()
+                        CustomDialog.show_info(self.root,"No More Check-ins", "All check-ins have been deleted.")
+                        # Clear the current frame and show main menu
+                        for widget in self.menu_window.winfo_children():
+                            widget.destroy()
+                        self.show_menu()
                 else:
                     CustomDialog.show_error(self.root,"Error", f"Failed to delete check-in for {name}.")
                     
@@ -2187,7 +2202,10 @@ Database location and connection details can be found in attendance_database.py"
             
             if not checkins:
                 CustomDialog.show_info(self.root,"Refresh Complete", "No check-ins found for today.")
-                self.edit_window.destroy()
+                # Clear the current frame and show main menu
+                for widget in self.menu_window.winfo_children():
+                    widget.destroy()
+                self.show_menu()
             else:
                 CustomDialog.show_info(self.root,"Refresh Complete", f"List refreshed. {len(checkins)} check-ins found.")
                 
