@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import os
 import threading
+from multiprocessing import Pool, Process
 import time
 import subprocess
 import tkinter as tk
@@ -68,6 +69,7 @@ class CustomDialog:
     def _show_dialog(parent, title, message, dialog_type):
         """Internal method to create and show dialog"""
         dialog = tk.Toplevel(parent)
+        dialog.grab_set()
         dialog.title(title)
         dialog.configure(bg='#2c3e50')
         dialog.resizable(False, False)
@@ -90,12 +92,7 @@ class CustomDialog:
         header_frame.pack(fill=tk.X, pady=(0, 15))
         
         # Icon based on dialog type
-        icon_colors = {
-            'info': '💡',
-            'error': '❌',
-            'warning': '⚠️',
-            'question': '❓'
-        }
+      
         
         # Title colors
         title_colors = {
@@ -105,8 +102,7 @@ class CustomDialog:
             'question': '#9b59b6'
         }
         
-        icon_label = tk.Label(header_frame, text=icon_colors.get(dialog_type, '💡'), 
-                             font=('Arial', 24), bg='#2c3e50')
+        icon_label = tk.Label(header_frame, text="", font=('Arial', 24), bg='#2c3e50')
         icon_label.pack(side=tk.LEFT, padx=(0, 10))
         
         title_label = tk.Label(header_frame, text=title, 
@@ -163,6 +159,7 @@ class CustomDialog:
                                relief=tk.RAISED, bd=3,
                                cursor='hand2')
             yes_btn.pack(side=tk.RIGHT, padx=(10, 0))
+            yes_btn.focus_set()
             
             no_btn = tk.Button(button_frame, text="No", 
                               command=lambda: on_button_click(False),
@@ -172,6 +169,7 @@ class CustomDialog:
                               relief=tk.RAISED, bd=3,
                               cursor='hand2')
             no_btn.pack(side=tk.RIGHT)
+
         else:
             # OK button
             ok_btn = tk.Button(button_frame, text="OK", 
@@ -182,6 +180,7 @@ class CustomDialog:
                               relief=tk.RAISED, bd=3,
                               cursor='hand2')
             ok_btn.pack(side=tk.RIGHT)
+            ok_btn.focus_set()
         
         # Handle window close
         def on_close():
@@ -208,7 +207,8 @@ class CustomDialog:
         dialog.bind('<Escape>', on_escape)
         
         # Focus and wait
-
+        dialog.focus()
+        dialog.wait_window()
         
         return result
 
@@ -464,19 +464,19 @@ class OptimizedFaceRecognitionAttendanceUI:
                     )
                     if success:
                         added_count += 1
-                        print(f"✅ Synced '{user_name}' to database")
+                        print(f"Synced '{user_name}' to database")
                 except Exception as e:
-                    print(f"❌ Failed to sync '{user_name}': {e}")
+                    print(f"Failed to sync '{user_name}': {e}")
             
             if added_count > 0:
-                print(f"🔄 Synced {added_count} users from dataset to database")
+                print(f"Synced {added_count} users from dataset to database")
             elif len(dataset_users) > 0:
-                print(f"✅ All {len(dataset_users)} dataset users are already in database")
+                print(f"All {len(dataset_users)} dataset users are already in database")
             else:
-                print("📁 No users found in dataset to sync")
+                print("No users found in dataset to sync")
                 
         except Exception as e:
-            print(f"❌ Error syncing dataset with database: {e}")
+            print(f"Error syncing dataset with database: {e}")
     
     def initialize_attendance_database(self):
         """Initialize attendance database"""
@@ -501,8 +501,6 @@ class OptimizedFaceRecognitionAttendanceUI:
         self.video_frame = tk.Frame(main_frame, bg='#2c3e50', relief=tk.RAISED, bd=2)
         self.video_frame.pack(fill=tk.BOTH, expand=True, padx=0, pady=(3, 5))
         
-        # Create main menu window button in upper right corner
-        self.create_menu_button()
    
         # Main canvas for video
         self.canvas = tk.Canvas(self.video_frame, bg='black', highlightthickness=1, highlightcolor='#7f8c8d')
@@ -551,7 +549,12 @@ class OptimizedFaceRecognitionAttendanceUI:
         
         # Load today's existing check-ins from database
         self.load_existing_checkins()
-    
+    def start_capture_thread(self):
+            self.t2 = threading.Thread(target=self.start_capture)
+            self.t2.start()   
+    def start_menu_thread(self):
+            self.t1 = threading.Thread(target=self.show_main_menu_window)
+            self.t1.start()
     def create_ui_buttons(self):
         """Create UI buttons in the bottom panel"""
         # Button configurations
@@ -562,18 +565,24 @@ class OptimizedFaceRecognitionAttendanceUI:
         left_frame = tk.Frame(self.button_frame, bg='#34495e')
         left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
         
-        self.capture_button = tk.Button(left_frame, text="Start Training", command=self.start_capture,
+        self.capture_button = tk.Button(left_frame, text="Add New Employee", command=lambda:threading.Thread(target=self.start_capture_thread).start,
                                       bg='#27ae60', fg='white', width=18, **main_button_config)
         self.capture_button.pack(fill=tk.BOTH, expand=True)
         
         # Right side - Control buttons
-        right_frame = tk.Frame(self.button_frame, bg='#34495e')
-        right_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=5)
+        menu_frame = tk.Frame(self.button_frame, bg='#34495e')
+        menu_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=5)
         
-        self.attendance_button = tk.Button(right_frame, text="Attendance Summary", 
-                                         command=self.show_attendance_summary,
-                                         bg='#3498db', fg='white', width=18, **main_button_config)
-        self.attendance_button.pack(pady=2)
+   
+        
+        self.menu_button = tk.Button(menu_frame, text="☰ Menu", 
+                                    font=('Arial', 18, 'bold'),
+                                    bg='#34495e', fg='white',
+                                    relief=tk.RAISED, bd=3,
+                                    cursor='hand2',
+                                    width=12, height=2,
+                                    command=lambda: threading.Thread(target=self.start_menu_thread).start())
+        self.menu_button.pack(padx=5, pady=5)
         
         #self.manual_checkin_button = tk.Button(right_frame, text="Manual Check-in", 
         #                                     command=self.manual_check_in,
@@ -624,26 +633,8 @@ class OptimizedFaceRecognitionAttendanceUI:
         # Track if we've had any check-ins today
         self.has_checkins_today = False
     
-    def create_menu_button(self):
-        """Create main menu button in the upper right corner"""
-        # Create menu bar frame positioned in upper right
-        menu_frame = tk.Frame(self.root, bg='#2c3e50')
-        menu_frame.place(relx=0.98, rely=0.02, anchor='ne')
-        
-        # Create main menu button (larger size) with click protection
-        self.menu_button = tk.Button(menu_frame, text="☰ Menu", 
-                                    font=('Arial', 18, 'bold'),
-                                    bg='#34495e', fg='white',
-                                    relief=tk.RAISED, bd=3,
-                                    cursor='hand2',
-                                    width=12, height=2,
-                                    command=self.show_main_menu_window)
-        #self.menu_button.config(command=self.prevent_multiple_clicks(self.menu_button, self.show_main_menu_window, "menu_btn", restore_on_window_close=True))
-        self.menu_button.pack(padx=5, pady=5)
-    def popup(self):
-        self.show_main_menu_window()
-        self.root.wait_window(self)
-
+    
+ 
     def show_main_menu_window(self):
 
         self.menu_window = tk.Toplevel(self.root)
@@ -711,19 +702,19 @@ class OptimizedFaceRecognitionAttendanceUI:
         buttons_frame.pack(fill=tk.X, padx=15, pady=15)
         
         # Single Employee Check-in Details button with click protection
-        employee_detail_btn = tk.Button(buttons_frame, text="👥 Employee Details", 
+        employee_detail_btn = tk.Button(buttons_frame, text="Employee Details", 
                                        command=lambda: self.show_employee(parent),
                                        bg='#3498db', fg='white', **button_config)
         employee_detail_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Additional utility buttons with click protection
-        photos_btn = tk.Button(buttons_frame, text="📸 Check-in Details", 
+        photos_btn = tk.Button(buttons_frame, text="Check-in Details", 
                               command=self.show_checkin,
                               bg='#e67e22', fg='white', **button_config)
         photos_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Export Report button with click protection
-        export_btn = tk.Button(buttons_frame, text="📤 Export Report", 
+        export_btn = tk.Button(buttons_frame, text="Export Report", 
                               command=self.export_attendance_report,
                               bg='#27ae60', fg='white', **button_config)
         export_btn.pack(side=tk.LEFT)
@@ -746,7 +737,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         buttons_frame.pack(fill=tk.X, padx=15, pady=15)
         
         # Edit Today's Check-ins button with click protection
-        edit_btn = tk.Button(buttons_frame, text="✏️ Edit Today's Check-ins", 
+        edit_btn = tk.Button(buttons_frame, text="Edit Today's Check-ins", 
                             command=self.show_edit,
                             bg='#e74c3c', fg='white', **button_config)
         edit_btn.pack(side=tk.LEFT)
@@ -775,19 +766,19 @@ class OptimizedFaceRecognitionAttendanceUI:
         buttons_frame.pack(fill=tk.X, padx=15, pady=15)
         
         # Camera Settings button with click protection
-        camera_btn = tk.Button(buttons_frame, text="📹 Camera Settings", 
+        camera_btn = tk.Button(buttons_frame, text="Camera Settings", 
                               command=self.show_camera_settings,
                               bg='#34495e', fg='white', **button_config)
         camera_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Recognition Settings button with click protection
-        recognition_btn = tk.Button(buttons_frame, text="🤖 Recognition Settings", 
+        recognition_btn = tk.Button(buttons_frame, text="Recognition Settings", 
                                   command=self.show_recognition_settings,
                                   bg='#34495e', fg='white', **button_config)
         recognition_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Database Settings button with click protection
-        db_btn = tk.Button(buttons_frame, text="🗄️ Database Settings", 
+        db_btn = tk.Button(buttons_frame, text="Database Settings", 
                           command=self.show_database_settings,
                           bg='#34495e', fg='white', **button_config)
         db_btn.pack(side=tk.LEFT)
@@ -810,27 +801,29 @@ class OptimizedFaceRecognitionAttendanceUI:
         buttons_frame.pack(fill=tk.X, padx=15, pady=15)
         
         # Reset System button with click protection
-        reset_btn = tk.Button(buttons_frame, text="🔄 Reset System", 
+        reset_btn = tk.Button(buttons_frame, text="Reset System", 
                              command=self.reset_system,
                              bg='#f39c12', fg='white', **button_config)
         reset_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Exit button with click protection
-        exit_btn = tk.Button(buttons_frame, text="🚪 Exit System", 
+        exit_btn = tk.Button(buttons_frame, text="Exit System", 
                             command=self.cleanup_and_exit,
                             bg='#e74c3c', fg='white', **button_config)
         exit_btn.pack(side=tk.LEFT)
         
         # Close Menu button with click protection
-        close_btn = tk.Button(buttons_frame, text="❌ Close Menu", 
+        close_btn = tk.Button(buttons_frame, text="Close Menu", 
                              command=self.close_menu_window,
                              bg='#95a5a6', fg='white', **button_config)
         close_btn.pack(side=tk.RIGHT)
+        close_btn.focus_set()
     
     def close_menu_window(self):
-    
+        self.t1.join();
         self.menu_window.destroy()
         self.video_paused = False
+       
         print("Video processing resumed")
     
     def show_employee(self,parent):
@@ -953,13 +946,14 @@ class OptimizedFaceRecognitionAttendanceUI:
         refresh_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Close button (larger font) with click protection
-        close_btn = tk.Button(button_frame, text="❌ Close", 
+        close_btn = tk.Button(button_frame, text="Close", 
                              command=self.close_employee_window,
                              font=('Arial', 14, 'bold'),
                              bg='#95a5a6', fg='white',
                              width=15, height=2,
                              relief=tk.RAISED, bd=2)
         close_btn.pack(side=tk.RIGHT)
+        close_btn.focus_set()
     def close_employee_window(self):
         # Clear the current frame and show main menu
         for widget in self.menu_window.winfo_children():
@@ -1536,13 +1530,14 @@ class OptimizedFaceRecognitionAttendanceUI:
         self.next_button.pack(side=tk.LEFT)
         
         # Close button
-        close_btn = tk.Button(control_frame, text="❌ Close", 
+        close_btn = tk.Button(control_frame, text="Close", 
                              command=self.close_checkin,
                              font=('Arial', 10, 'bold'),
                              bg='#e74c3c', fg='white',
                              width=20, height=2,
                              relief=tk.RAISED, bd=2)
         close_btn.pack(side=tk.RIGHT)
+        close_btn.focus_set()
     def close_checkin(self):
         # Clear the current frame and show main menu
         for widget in self.menu_window.winfo_children():
@@ -1982,13 +1977,6 @@ Database location and connection details can be found in attendance_database.py"
             records = self.attendance_db.get_attendance_report(today, today)
             
             checkins = [record for record in records if record.get('check_in_time')]
-            
-            if not checkins:
-                CustomDialog.show_info(self.root,"Edit Check-ins", "No check-ins recorded for today.")
-                return
-            
-        
-            
             # Create edit window
             self.create_edit_checkins_window(checkins)
             
@@ -2120,12 +2108,17 @@ Database location and connection details can be found in attendance_database.py"
         if not self.attendance_db:
             CustomDialog.show_error(self.root,"Error", "Attendance database not initialized.")
             return
+            
         selection = self.checkins_listbox.curselection()
+        print(f"Selection: {selection}")
+        
         if not selection:
             CustomDialog.show_warning(self.root, "Warning", "Please select a check-in entry to delete.")
             return
         
         index = selection[0]
+        print(f"Selected index: {index}, Total data items: {len(self.edit_checkins_data)}")
+        
         if index >= len(self.edit_checkins_data):
             CustomDialog.show_error(self.root,"Error", "Invalid selection.")
             return
@@ -2135,7 +2128,7 @@ Database location and connection details can be found in attendance_database.py"
         name = record_to_delete['name']
         check_in_time = record_to_delete['check_in_time']
         
-        print(f"Deleting check-in for {name} at {check_in_time}")
+        print(f"Attempting to delete check-in for {name} at {check_in_time}")
 
         # Format time for display
         if isinstance(check_in_time, str):
@@ -2157,33 +2150,45 @@ Database location and connection details can be found in attendance_database.py"
         
         if result:
             try:
+                print(f"User confirmed deletion, calling database delete...")
                 # Delete from database
                 success = self.attendance_db.delete_checkin(name, check_in_time)
-                
-                if success:
-                    # Remove from local data
-                    del self.edit_checkins_data[index]
+                print(f"Database delete result: {success}")
                     
-                    # Refresh the listbox
+                if success:
+                    print("Database deletion successful, updating UI...")
+                    
+                    # Refresh the check-ins data from database to ensure consistency
+                    from datetime import datetime
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    records = self.attendance_db.get_attendance_report(today, today)
+                    self.edit_checkins_data = [record for record in records if record.get('check_in_time')]
+                    
+                    print(f"Refreshed data from database, now have {len(self.edit_checkins_data)} items")
+                    
+                    # Clear listbox completely and repopulate
+                    self.checkins_listbox.delete(0, tk.END)
+                    
+              
                     self.populate_checkins_listbox(self.edit_checkins_data)
+                    print("Listbox repopulated with remaining data")
+                   
                     
                     # Update the main textbox
                     self.load_existing_checkins()
                     
-                    CustomDialog.show_info(self.root,"Success", f"Check-in for {name} has been deleted.")
-                    
+         
                     # If no more check-ins, go back to main menu
-                    if not self.edit_checkins_data:
-                        CustomDialog.show_info(self.root,"No More Check-ins", "All check-ins have been deleted.")
-                        # Clear the current frame and show main menu
-                        for widget in self.menu_window.winfo_children():
-                            widget.destroy()
-                        self.show_menu()
+                  
                 else:
+                    print("Database deletion failed")
                     CustomDialog.show_error(self.root,"Error", f"Failed to delete check-in for {name}.")
                     
             except Exception as e:
+                print(f"Exception during deletion: {e}")
                 CustomDialog.show_error(self.root,"Error", f"Failed to delete check-in: {e}")
+        else:
+            print("User cancelled deletion")
     
     def refresh_checkins_list(self):
         """Refresh the check-ins list"""
@@ -2200,14 +2205,8 @@ Database location and connection details can be found in attendance_database.py"
             
             self.populate_checkins_listbox(checkins)
             
-            if not checkins:
-                CustomDialog.show_info(self.root,"Refresh Complete", "No check-ins found for today.")
-                # Clear the current frame and show main menu
-                for widget in self.menu_window.winfo_children():
-                    widget.destroy()
-                self.show_menu()
-            else:
-                CustomDialog.show_info(self.root,"Refresh Complete", f"List refreshed. {len(checkins)} check-ins found.")
+     
+            CustomDialog.show_info(self.root,"Refresh Complete", f"List refreshed. {len(checkins)} check-ins found.")
                 
         except Exception as e:
             CustomDialog.show_error(self.root,"Error", f"Failed to refresh list: {e}")
@@ -2469,8 +2468,11 @@ Database location and connection details can be found in attendance_database.py"
                 self.handle_attendance_optimized(name)
             
             # Capture for training
+
+            
             if self.is_capturing and self.capture_count < self.max_captures:
-                self.capture_face_optimized(frame[y:y+h, x:x+w])
+                
+                self.capture_face_optimized( frame[y:y+h, x:x+w])
         
         # Update face tracking first
         self.update_face_tracking(current_faces, face_names)
@@ -2863,6 +2865,8 @@ Database location and connection details can be found in attendance_database.py"
             cv2.putText(frame, f"ID:{track_id}", (x+w-40, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
     
     def capture_face_optimized(self, face_img):
+
+        
         """Optimized face capture"""
         try:
             if face_img is None or face_img.size == 0 or min(face_img.shape[:2]) < 20:
@@ -2884,15 +2888,15 @@ Database location and connection details can be found in attendance_database.py"
                                 if f.startswith(f'{clean_name}_') and f.endswith('.jpg')])
             
             filename = f"{user_dir}/{clean_name}_{existing_count + self.capture_count + 1}.jpg"
-            cv2.imwrite(filename, face_img)
-            
             self.capture_count += 1
-            time.sleep(0.5)
+            cv2.imwrite(filename, face_img)
             self.progress_var.set(self.capture_count)
-            
+
             if self.capture_count >= self.max_captures:
                 self.video_paused = True
                 self.stop_capture()
+             
+            
                 
         except Exception as e:
             print(f"Capture error: {e}")
@@ -2915,7 +2919,7 @@ Database location and connection details can be found in attendance_database.py"
         self.capture_count = 0
         self.is_capturing = True
         self.video_paused = False
-        
+        self.t2.join()
         # Show capture instructions
  
         
@@ -2932,8 +2936,10 @@ Database location and connection details can be found in attendance_database.py"
         print(f"Started capturing faces for {name}")
     
     def get_user_name_input(self):
+
         dialog = tk.Toplevel(self.root)
         dialog.grab_set()
+        dialog.transient(self.root)
         dialog.title("Face Recognition Training - Name Input")
         dialog.configure(bg='#2c3e50')
         
@@ -2941,7 +2947,7 @@ Database location and connection details can be found in attendance_database.py"
    
         
         # Center on screen with optimized size
-        dialog_width, dialog_height = 800, 600
+        dialog_width, dialog_height = 700, 600
         x = (self.screen_width - dialog_width) // 2
         y = (self.screen_height - dialog_height) // 2
         dialog.geometry(f"{dialog_width}x{dialog_height}+{x}+{y}")
@@ -3026,7 +3032,7 @@ Database location and connection details can be found in attendance_database.py"
             dialog.destroy()
         
         # Enhanced button creation with better styling
-        def create_key_button(parent, text, command, style='normal'):
+        def create_key_button(parent, text, command, style='normal',width=4):
             """Create optimized keyboard button"""
             colors = {
                 'normal': {'bg': '#34495e', 'fg': 'white', 'active_bg': '#4a6741'},
@@ -3037,7 +3043,7 @@ Database location and connection details can be found in attendance_database.py"
             
             color = colors.get(style, colors['normal'])
             
-            btn = tk.Button(parent, text=text, width=5, height=3,
+            btn = tk.Button(parent, text=text, width=width, height=3,
                            font=('Arial', 12, 'bold'),
                            bg=color['bg'], fg=color['fg'],
                            activebackground=color['active_bg'],
@@ -3060,16 +3066,16 @@ Database location and connection details can be found in attendance_database.py"
         control_frame = tk.Frame(main_frame, bg='#2c3e50')
         control_frame.pack(fill=tk.X, pady=(0, 10))
         
-        confirm_btn = tk.Button(control_frame, text="✓ Confirm", command=confirm,
+        confirm_btn = tk.Button(control_frame, text="Confirm", command=confirm,
                                font=('Arial', 12, 'bold'), bg='#27ae60', fg='white',
                                width=12, height=2, relief=tk.RAISED, bd=3, cursor='hand2')
         confirm_btn.pack(side=tk.RIGHT, padx=(0, 10))
         
-        cancel_btn = tk.Button(control_frame, text="✕ Cancel", command=cancel,
+        cancel_btn = tk.Button(control_frame, text="Cancel", command=cancel,
                               font=('Arial', 12, 'bold'), bg='#e74c3c', fg='white',
                               width=12, height=2, relief=tk.RAISED, bd=3, cursor='hand2')
         cancel_btn.pack(side=tk.RIGHT)
-        
+        cancel_btn.focus_set()
         # Separator
         separator = tk.Frame(main_frame, height=2, bg='#7f8c8d')
         separator.pack(fill=tk.X, pady=10)
@@ -3094,7 +3100,7 @@ Database location and connection details can be found in attendance_database.py"
             for key in row_data['keys']:
                 btn = create_key_button(row_frame, key, 
                                        lambda k=key.lower(): press_key(k),
-                                       row_data['style'])
+                                       row_data['style'],4)
                 btn.pack(side=tk.LEFT)
         
         # Special keys row
@@ -3109,15 +3115,15 @@ Database location and connection details can be found in attendance_database.py"
         space_btn.pack(side=tk.LEFT, padx=2)
         
         # Backspace
-        back_btn = create_key_button(special_frame, "⌫", backspace, 'danger')
+        back_btn = create_key_button(special_frame, "⌫", backspace, 'danger',8)
         back_btn.pack(side=tk.LEFT, padx=2)
         
         # Clear
-        clear_btn = create_key_button(special_frame, "Clear", clear_text, 'special')
+        clear_btn = create_key_button(special_frame, "Clear", clear_text, 'special',8)
         clear_btn.pack(side=tk.LEFT, padx=2)
         
         # Enter
-        enter_btn = create_key_button(special_frame, "Enter", confirm, 'action')
+        enter_btn = create_key_button(special_frame, "Enter", confirm, 'action',10)
         enter_btn.pack(side=tk.LEFT, padx=2)
         
         # Enhanced event bindings
@@ -3415,12 +3421,12 @@ Database location and connection details can be found in attendance_database.py"
                     )
                     
                     if success:
-                        print(f"✅ Added '{self.current_user_name}' to attendance database")
+                        print(f"Added '{self.current_user_name}' to attendance database")
                         CustomDialog.show_info(self.root, "Training Complete", 
                                       f"Successfully trained and registered '{self.current_user_name}' as a new employee!\n\n"
                                       f"Embeddings: {num_embeddings}")
                     else:
-                        print(f"❌ Failed to add '{self.current_user_name}' to database")
+                        print(f"Failed to add '{self.current_user_name}' to database")
                         CustomDialog.show_info(self.root,"Training Complete", 
                                           f"Successfully trained '{self.current_user_name}'!\n\n"
                                           f"Embeddings: {num_embeddings}\n"
