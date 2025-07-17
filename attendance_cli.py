@@ -21,11 +21,11 @@ def print_menu():
     print("2. Check Out")
     print("3. View Daily Summary")
     print("4. View Attendance Report")
-    print("5. Add Employee")
-    print("6. List Employees")
+    print("5. Add ")
+    print("6. List s")
     print("7. Import from CSV")
     print("8. Export to CSV")
-    print("9. View Employee History")
+    print("9. View  History")
     print("0. Exit")
 
 def interactive_mode():
@@ -44,14 +44,14 @@ def interactive_mode():
                 break
                 
             elif choice == '1':
-                name = input("Enter employee name: ").strip()
+                name = input("Enter  name: ").strip()
                 if name:
                     db.check_in(name)
                 else:
                     print("Name cannot be empty")
                     
             elif choice == '2':
-                name = input("Enter employee name: ").strip()
+                name = input("Enter  name: ").strip()
                 if name:
                     db.check_out(name)
                 else:
@@ -67,12 +67,12 @@ def interactive_mode():
             elif choice == '4':
                 start_date = input("Enter start date (YYYY-MM-DD) or press Enter for all: ").strip()
                 end_date = input("Enter end date (YYYY-MM-DD) or press Enter for all: ").strip()
-                employee = input("Enter employee name or press Enter for all: ").strip()
+                 = input("Enter  name or press Enter for all: ").strip()
                 
                 records = db.get_attendance_report(
                     start_date if start_date else None,
                     end_date if end_date else None,
-                    employee if employee else None
+                     if  else None
                 )
                 
                 print(f"\n=== Attendance Report ({len(records)} records) ===")
@@ -83,21 +83,21 @@ def interactive_mode():
                           f"Hours: {record['total_hours'] or 'N/A'}")
                           
             elif choice == '5':
-                name = input("Enter employee name: ").strip()
-                employee_id = input("Enter employee ID (optional): ").strip()
+                name = input("Enter  name: ").strip()
+                _id = input("Enter  ID (optional): ").strip()
                 department = input("Enter department (optional): ").strip()
                 position = input("Enter position (optional): ").strip()
                 
                 if name:
-                    db.add_employee(name, employee_id, department, position)
+                    db.add_(name, _id, department, position)
                 else:
                     print("Name cannot be empty")
                     
             elif choice == '6':
-                employees = db.get_employees()
-                print(f"\n=== Employees ({len(employees)}) ===")
-                for emp in employees:
-                    print(f"{emp['name']} | ID: {emp['employee_id'] or 'N/A'} | "
+                s = db.get_s()
+                print(f"\n=== s ({len(s)}) ===")
+                for emp in s:
+                    print(f"{emp['name']} | ID: {emp['_id'] or 'N/A'} | "
                           f"Dept: {emp['department'] or 'N/A'} | "
                           f"Position: {emp['position'] or 'N/A'}")
                           
@@ -120,13 +120,13 @@ def interactive_mode():
                     print("Filename cannot be empty")
                     
             elif choice == '9':
-                name = input("Enter employee name: ").strip()
+                name = input("Enter  name: ").strip()
                 days = input("Enter number of days (default 30): ").strip()
                 
                 if name:
                     try:
                         days_int = int(days) if days else 30
-                        records = db.get_employee_attendance(name, days_int)
+                        records = db.get__attendance(name, days_int)
                         print(f"\n=== {name}'s Attendance History ({len(records)} records) ===")
                         for record in records:
                             print(f"{record['date']} | "
@@ -156,15 +156,15 @@ def main():
     parser = argparse.ArgumentParser(description='Attendance Database System')
     parser.add_argument('--interactive', '-i', action='store_true', 
                        help='Run in interactive mode')
-    parser.add_argument('--check-in', type=str, help='Check in employee')
-    parser.add_argument('--check-out', type=str, help='Check out employee')
+    parser.add_argument('--check-in', type=str, help='Check in ')
+    parser.add_argument('--check-out', type=str, help='Check out ')
     parser.add_argument('--summary', action='store_true', help='Show daily summary')
     parser.add_argument('--report', action='store_true', help='Show attendance report')
-    parser.add_argument('--add-employee', type=str, help='Add employee name')
-    parser.add_argument('--list-employees', action='store_true', help='List all employees')
+    parser.add_argument('--add-', type=str, help='Add  name')
+    parser.add_argument('--list-s', action='store_true', help='List all s')
     parser.add_argument('--import-csv', type=str, help='Import from CSV file')
     parser.add_argument('--export-csv', type=str, help='Export to CSV file')
-    parser.add_argument('--employee-history', type=str, help='Show employee history')
+    parser.add_argument('---history', type=str, help='Show  history')
     parser.add_argument('--days', type=int, default=30, help='Number of days for history')
     
     args = parser.parse_args()
@@ -190,20 +190,20 @@ def main():
                 print(f"{record['name']} | {record['date']} | "
                       f"Check-in: {record['check_in_time'] or 'N/A'} | "
                       f"Check-out: {record['check_out_time'] or 'N/A'}")
-        elif args.add_employee:
-            db.add_employee(args.add_employee)
-        elif args.list_employees:
-            employees = db.get_employees()
-            print("=== Employees ===")
-            for emp in employees:
-                print(f"{emp['name']} | {emp['employee_id'] or 'N/A'}")
+        elif args.add_:
+            db.add_(args.add_)
+        elif args.list_s:
+            s = db.get_s()
+            print("=== s ===")
+            for emp in s:
+                print(f"{emp['name']} | {emp['_id'] or 'N/A'}")
         elif args.import_csv:
             db.import_from_csv(args.import_csv)
         elif args.export_csv:
             db.export_to_csv(args.export_csv)
-        elif args.employee_history:
-            records = db.get_employee_attendance(args.employee_history, args.days)
-            print(f"=== {args.employee_history}'s History ===")
+        elif args._history:
+            records = db.get__attendance(args._history, args.days)
+            print(f"=== {args._history}'s History ===")
             for record in records:
                 print(f"{record['date']} | "
                       f"Check-in: {record['check_in_time'] or 'N/A'} | "
