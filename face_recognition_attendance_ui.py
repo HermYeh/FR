@@ -73,13 +73,13 @@ class OptimizedFaceRecognitionAttendanceUI:
             if self.root.x != event.x and self.root.y != event.y:
                 self.root.event_generate('<Motion>', x=self.root.x, y=self.root.y, warp=True)
                 self.root.event_generate('<Button-1>', x=self.root.x, y=self.root.y, warp=True)
-            else:
-                print(f"touch at {self.root.x}, {self.root.y}")
-            print(f"touch at {self.root.x}, {self.root.y}")
+            #else:
+                #print(f"touch at {self.root.x}, {self.root.y}")
+           #print(f"touch at {self.root.x}, {self.root.y}")
    
         def callback(e):
             x, y = e.x, e.y
-            print(f"Pointer is currently at {x}, {y}")   
+            #print(f"Pointer is currently at {x}, {y}")   
 
         self.root.bind("<Button-1>", record_touch)
         self.root.bind('<Motion>', callback)

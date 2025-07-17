@@ -15,12 +15,13 @@ class MenuManager:
         self.dates_per_page = 30
         self.selected_date = None
         self.attendance_db = AttendanceDatabase()
+       
     def show_main_menu_window(self, root):
         self.menu_window = tk.Toplevel(root)
         self.menu_window.grab_set()  
         self.menu_window.transient(root)
-        
-        self.menu_window.title("Face Recognition Attendance System - Main Menu")
+        self.start_capture = root.start_capture(self)
+        self.menu_window.title("TS Ma's Attendance System")
         self.menu_window.configure(bg='#2c3e50')
         
         # Set window size and center it
@@ -34,6 +35,8 @@ class MenuManager:
         # Make window resizable for user flexibility
         self.menu_window.resizable(True, True)
         self.menu_window.minsize(800, 600)  # Set minimum size
+        self.menu_window.protocol("WM_DELETE_WINDOW", self.close_menu_window)
+
         # Center the window
         self.show_menu()
     
@@ -110,11 +113,11 @@ class MenuManager:
         edit_btn = tk.Button(buttons_frame, text="Edit Today's Check-ins", 
                             command=self.show_edit,
                             bg='#e74c3c', fg='white', **button_config)
-        edit_btn.pack(side=tk.LEFT)
+        edit_btn.pack(side=tk.LEFT, padx=(0, 10))
 
-        edit_employee_btn = tk.Button(buttons_frame, text="Employee Management", 
-                            command=self.show_edit,
-                            bg='#e74c3c', fg='white', **button_config)
+        edit_employee_btn = tk.Button(buttons_frame, text="Add Employee", 
+                            command=lambda: self.start_capture() if self.start_capture else self.show_add_employee(),
+                            bg='#27ae60', fg='white', **button_config)
         edit_employee_btn.pack(side=tk.LEFT)
     
     def create_settings_section(self, parent):
@@ -133,15 +136,19 @@ class MenuManager:
         # Buttons frame
         buttons_frame = tk.Frame(section_frame, bg='#2c3e50')
         buttons_frame.pack(fill=tk.X, padx=15, pady=15)
+        attendance_btn = tk.Button(buttons_frame, text="Attendance", 
+                              command=self.show_attendance_settings,
+                              bg='#34495e', fg='white', **button_config)
+        attendance_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Camera Settings button with click protection
-        camera_btn = tk.Button(buttons_frame, text="Camera Settings", 
+        camera_btn = tk.Button(buttons_frame, text="Camera", 
                               command=self.show_camera_settings,
                               bg='#34495e', fg='white', **button_config)
         camera_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Recognition Settings button with click protection
-        recognition_btn = tk.Button(buttons_frame, text="Recognition Settings", 
+        recognition_btn = tk.Button(buttons_frame, text="Recognition", 
                                   command=self.show_recognition_settings,
                                   bg='#34495e', fg='white', **button_config)
         recognition_btn.pack(side=tk.LEFT, padx=(0, 10))
@@ -287,7 +294,7 @@ class MenuManager:
         button_frame.pack(fill=tk.X, pady=(10, 0))
         
         # Today's Check-ins button (larger font) with click protection
-        today_btn = tk.Button(button_frame, text="📊 Today's Check-ins", 
+        today_btn = tk.Button(button_frame, text="Today's Check-ins", 
                              command=self.show_todays_checkins,
                              font=('Arial', 14, 'bold'),
                              bg='#3498db', fg='white',
@@ -296,7 +303,7 @@ class MenuManager:
         today_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Refresh button (larger font) with click protection
-        refresh_btn = tk.Button(button_frame, text="🔄 Refresh", 
+        refresh_btn = tk.Button(button_frame, text="Refresh", 
                                command=self.refresh_employee_data,
                                font=('Arial', 14, 'bold'),
                                bg='#27ae60', fg='white',
@@ -321,15 +328,202 @@ class MenuManager:
                 widget.destroy()
             self.show_menu()
     
+
+
     def load_employee_data(self):
+
         """Load employee data into the listbox"""
-        # This method will be implemented with dependency injection
-        pass
+        if not self.attendance_db:
+            CustomDialog.show_error(self.menu_window, "Error", "Attendance database not initialized.")
+            return
+        try:
+            employees = self.attendance_db.get_employees()
+            
+            # Clear existing items
+            self.employee_listbox.delete(0, tk.END)
+            
+            # Store employee data
+            self.employee_data = employees
+            
+            if not employees:
+                self.employee_listbox.insert(tk.END, "No employees found")
+                return
+            
+            # Add employees to listbox
+            for employee in employees:
+                name = employee['name']
+                dept = employee.get('department', 'N/A')
+                display_text = f"{name} ({dept})"
+                self.employee_listbox.insert(tk.END, display_text)
+            
+        except Exception as e:
+            CustomDialog.show_error(self.menu_window, "Error", f"Failed to load employee data: {e}")
     
     def on_employee_detail_select(self, event):
         """Handle employee selection"""
-        # This method will be implemented with dependency injection
-        pass
+        selection = self.employee_listbox.curselection()
+        if not selection:
+            return
+        
+        index = selection[0]
+        if index >= len(self.employee_data):
+            return
+        
+        # Get selected employee
+        selected_employee = self.employee_data[index]
+        self.show_employee_details(selected_employee)
+    
+    def show_employee_details(self, employee):
+        """Show detailed information for selected employee"""
+        # Clear previous content
+        for widget in self.details_content.winfo_children():
+            widget.destroy()
+        
+        # Employee name
+        name_label = tk.Label(self.details_content, text=f"Name: {employee['name']}", 
+                             font=('Arial', 14, 'bold'), 
+                             fg='#ecf0f1', bg='#34495e')
+        name_label.pack(anchor=tk.W, pady=(0, 10))
+        
+        # Basic info frame
+        info_frame = tk.Frame(self.details_content, bg='#34495e')
+        info_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        # Department
+        dept_label = tk.Label(info_frame, text=f"Department: {employee.get('department', 'N/A')}", 
+                             font=('Arial', 11), 
+                             fg='#bdc3c7', bg='#34495e')
+        dept_label.pack(anchor=tk.W, pady=2)
+        
+        # Position
+        pos_label = tk.Label(info_frame, text=f"Position: {employee.get('position', 'N/A')}", 
+                            font=('Arial', 11), 
+                            fg='#bdc3c7', bg='#34495e')
+        pos_label.pack(anchor=tk.W, pady=2)
+        
+        # Employee ID
+        id_label = tk.Label(info_frame, text=f"Employee ID: {employee.get('employee_id', 'N/A')}", 
+                           font=('Arial', 11), 
+                           fg='#bdc3c7', bg='#34495e')
+        id_label.pack(anchor=tk.W, pady=2)
+        
+        # Separator
+        separator = tk.Frame(self.details_content, bg='#7f8c8d', height=2)
+        separator.pack(fill=tk.X, pady=10)
+        
+        # Work statistics
+        stats_label = tk.Label(self.details_content, text="Work Statistics", 
+                              font=('Arial', 12, 'bold'), 
+                              fg='#ecf0f1', bg='#34495e')
+        stats_label.pack(anchor=tk.W, pady=(10, 5))
+        
+        # Calculate and display statistics
+        self.calculate_and_display_statistics(employee['name'])
+    
+    def calculate_and_display_statistics(self, employee_name):
+        """Calculate and display work statistics for employee"""
+        if not self.attendance_db:
+            error_label = tk.Label(self.details_content, text="Attendance database not initialized.", 
+                                  font=('Arial', 10), 
+                                  fg='#e74c3c', bg='#34495e')
+            error_label.pack(anchor=tk.W, pady=5)
+            return
+        try:
+            from datetime import datetime, timedelta
+            
+            # Get current date
+            today = datetime.now()
+            
+            # Calculate date ranges
+            # Last week (7 days ago to today)
+            last_week_start = (today - timedelta(days=7)).strftime("%Y-%m-%d")
+            last_week_end = today.strftime("%Y-%m-%d")
+            
+            # Current month
+            month_start = today.replace(day=1).strftime("%Y-%m-%d")
+            month_end = today.strftime("%Y-%m-%d")
+            
+            # Get attendance records
+            week_records = self.attendance_db.get_attendance_report(
+                last_week_start, last_week_end, employee_name)
+            month_records = self.attendance_db.get_attendance_report(
+                month_start, month_end, employee_name)
+            
+            # Calculate statistics
+            # Hours worked last week
+            total_hours_week = 0
+            for record in week_records:
+                if record.get('total_hours'):
+                    total_hours_week += record['total_hours']
+            
+            # Days worked this month
+            days_worked_month = len([r for r in month_records if r.get('check_in_time')])
+            
+            # Today's status
+            today_str = today.strftime("%Y-%m-%d")
+            today_records = self.attendance_db.get_attendance_report(
+                today_str, today_str, employee_name)
+            
+            today_status = "Present" if today_records else "Not checked in"
+            
+            # Display statistics
+            stats_frame = tk.Frame(self.details_content, bg='#34495e')
+            stats_frame.pack(fill=tk.X, pady=5)
+            
+            # Today's status
+            today_label = tk.Label(stats_frame, text=f"Today's Status: {today_status}", 
+                                  font=('Arial', 11), 
+                                  fg='#27ae60' if today_status == "Present" else '#e74c3c', 
+                                  bg='#34495e')
+            today_label.pack(anchor=tk.W, pady=2)
+            
+            # Hours last week
+            hours_label = tk.Label(stats_frame, text=f"Hours worked last week: {total_hours_week:.1f} hours", 
+                                  font=('Arial', 11), 
+                                  fg='#3498db', bg='#34495e')
+            hours_label.pack(anchor=tk.W, pady=2)
+            
+            # Days this month
+            days_label = tk.Label(stats_frame, text=f"Days worked this month: {days_worked_month} days", 
+                                 font=('Arial', 11), 
+                                 fg='#9b59b6', bg='#34495e')
+            days_label.pack(anchor=tk.W, pady=2)
+            
+            # Recent check-ins
+            recent_label = tk.Label(self.details_content, text="Recent Check-ins", 
+                                   font=('Arial', 12, 'bold'), 
+                                   fg='#ecf0f1', bg='#34495e')
+            recent_label.pack(anchor=tk.W, pady=(15, 5))
+            
+            # Show recent check-ins (last 5)
+            recent_frame = tk.Frame(self.details_content, bg='#2c3e50', relief=tk.SUNKEN, bd=1)
+            recent_frame.pack(fill=tk.X, pady=5)
+            
+            recent_records = week_records[-5:] if week_records else []
+            
+            if recent_records:
+                for record in reversed(recent_records):
+                    if record.get('check_in_time'):
+                        date_str = record['date']
+                        time_str = record['check_in_time'].split(' ')[1] if ' ' in record['check_in_time'] else record['check_in_time']
+                        hours = f" ({record['total_hours']:.1f}h)" if record.get('total_hours') else ""
+                        
+                        record_text = f"• {date_str} at {time_str}{hours}"
+                        record_label = tk.Label(recent_frame, text=record_text, 
+                                               font=('Arial', 10), 
+                                               fg='#ecf0f1', bg='#2c3e50')
+                        record_label.pack(anchor=tk.W, padx=10, pady=2)
+            else:
+                no_records_label = tk.Label(recent_frame, text="No recent check-ins found", 
+                                           font=('Arial', 10), 
+                                           fg='#95a5a6', bg='#2c3e50')
+                no_records_label.pack(anchor=tk.W, padx=10, pady=5)
+            
+        except Exception as e:
+            error_label = tk.Label(self.details_content, text=f"Error calculating statistics: {e}", 
+                                  font=('Arial', 10), 
+                                  fg='#e74c3c', bg='#34495e')
+            error_label.pack(anchor=tk.W, pady=5)
     
     def show_no_selection_message(self):
         """Show message when no employee is selected"""
@@ -347,9 +541,14 @@ class MenuManager:
     
     def refresh_employee_data(self):
         """Refresh employee data"""
-        # This method will be implemented with dependency injection
-        pass
+        self.load_employee_data()
+        self.show_no_selection_message()
+        CustomDialog.show_info(self.menu_window, "Refresh", "Employee data refreshed successfully")
+
+        # Restore employee detail button
+        #self.restore_button_on_window_close("employee_detail_btn")
     
+  
     def show_todays_checkins(self):
         """Show detailed view of today's check-ins"""
         if not self.attendance_db:
@@ -394,7 +593,211 @@ class MenuManager:
             
         except Exception as e:
             CustomDialog.show_error(self.menu_window,"Error", f"Failed to get today's check-ins: {e}")
+    def show_employee_list(self):
+        """Show list of all registered employees"""
+        if not self.attendance_db:
+            CustomDialog.show_warning(self.menu_window, "Warning", "Attendance database not available")
+            return
+        
+        try:
+            employees = self.attendance_db.get_employees()
+            
+            if not employees:
+                CustomDialog.show_info(self.menu_window,"Employee List", "No employees registered in the system.")
+                return
+            
+            report = f"Registered Employees ({len(employees)} total)\n\n"
+            
+            for i, employee in enumerate(employees, 1):
+                name = employee['name']
+                dept = employee.get('department', 'N/A')
+                position = employee.get('position', 'N/A')
+                report += f"{i}. {name}\n   Department: {dept}\n   Position: {position}\n\n"
+            
+            CustomDialog.show_info(self.menu_window,"Employee List", report)
+            
+        except Exception as e:
+            CustomDialog.show_error(self.menu_window,"Error", f"Failed to get employee list: {e}")
+
+    def show_add_employee(self):
+        """Show add employee dialog"""
+        self.show_add_employee_dialog()
     
+    def show_add_employee_dialog(self):
+        """Show dialog to add a new employee"""
+        # Create dialog window
+        dialog = tk.Toplevel(self.menu_window)
+        dialog.grab_set()
+        dialog.title("Add New Employee")
+        dialog.configure(bg='#2c3e50')
+        dialog.resizable(False, False)
+        dialog.transient(self.menu_window)
+        
+        # Center dialog relative to parent
+        dialog.update_idletasks()
+        width = 500
+        height = 450
+        
+        # Get parent window position and size
+        if self.menu_window:
+            self.menu_window.update_idletasks()
+            parent_x = self.menu_window.winfo_x()
+            parent_y = self.menu_window.winfo_y()
+            parent_width = self.menu_window.winfo_width()
+            parent_height = self.menu_window.winfo_height()
+        else:
+            parent_x = parent_y = parent_width = parent_height = 0
+        
+        # Calculate center position relative to parent
+        x = parent_x + (parent_width - width) // 2
+        y = parent_y + (parent_height - height) // 2
+        
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # Main frame
+        main_frame = tk.Frame(dialog, bg='#2c3e50')
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Title
+        title_label = tk.Label(main_frame, text="Add New Employee", 
+                              font=('Arial', 18, 'bold'), 
+                              fg='#ecf0f1', bg='#2c3e50')
+        title_label.pack(pady=(0, 20))
+        
+        # Form frame
+        form_frame = tk.Frame(main_frame, bg='#34495e', relief=tk.RAISED, bd=2)
+        form_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
+        
+        # Form content
+        content_frame = tk.Frame(form_frame, bg='#34495e')
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Form fields
+        fields = {}
+        
+        # Name field (required)
+        name_label = tk.Label(content_frame, text="Name *", 
+                             font=('Arial', 12, 'bold'), 
+                             fg='#ecf0f1', bg='#34495e')
+        name_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        fields['name'] = tk.Entry(content_frame, font=('Arial', 12), 
+                                 bg='#ffffff', fg='#2c3e50', width=40)
+        fields['name'].pack(fill=tk.X, pady=(0, 15))
+        fields['name'].focus_set()
+        
+        # Employee ID field
+        id_label = tk.Label(content_frame, text="Employee ID", 
+                           font=('Arial', 12, 'bold'), 
+                           fg='#ecf0f1', bg='#34495e')
+        id_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        fields['employee_id'] = tk.Entry(content_frame, font=('Arial', 12), 
+                                        bg='#ffffff', fg='#2c3e50', width=40)
+        fields['employee_id'].pack(fill=tk.X, pady=(0, 15))
+        
+        # Department field
+        dept_label = tk.Label(content_frame, text="Department", 
+                             font=('Arial', 12, 'bold'), 
+                             fg='#ecf0f1', bg='#34495e')
+        dept_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        fields['department'] = tk.Entry(content_frame, font=('Arial', 12), 
+                                       bg='#ffffff', fg='#2c3e50', width=40)
+        fields['department'].pack(fill=tk.X, pady=(0, 15))
+        
+        # Position field
+        pos_label = tk.Label(content_frame, text="Position", 
+                            font=('Arial', 12, 'bold'), 
+                            fg='#ecf0f1', bg='#34495e')
+        pos_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        fields['position'] = tk.Entry(content_frame, font=('Arial', 12), 
+                                     bg='#ffffff', fg='#2c3e50', width=40)
+        fields['position'].pack(fill=tk.X, pady=(0, 15))
+        
+        # Button frame
+        button_frame = tk.Frame(main_frame, bg='#2c3e50')
+        button_frame.pack(fill=tk.X)
+        
+        # Result storage
+        result = {'success': False}
+        
+        def on_save():
+            """Handle save button click"""
+            name = fields['name'].get().strip()
+            employee_id = fields['employee_id'].get().strip() or None
+            department = fields['department'].get().strip() or None
+            position = fields['position'].get().strip() or None
+            
+            # Validate required fields
+            if not name:
+                CustomDialog.show_error(dialog, "Validation Error", "Name is required!")
+                fields['name'].focus_set()
+                return
+            
+            try:
+                # Add employee to database
+                success = self.attendance_db.add_employee(
+                    name=name,
+                    employee_id=employee_id,
+                    department=department,
+                    position=position
+                )
+                
+                if success:
+                    result['success'] = True
+                    CustomDialog.show_info(dialog, "Success", f"Employee '{name}' added successfully!")
+                    dialog.destroy()
+                else:
+                    CustomDialog.show_error(dialog, "Error", f"Employee '{name}' already exists!")
+                    
+            except Exception as e:
+                CustomDialog.show_error(dialog, "Database Error", f"Failed to add employee: {e}")
+        
+        def on_cancel():
+            """Handle cancel button click"""
+            dialog.destroy()
+        
+        # Save button
+        save_btn = tk.Button(button_frame, text="Save Employee", 
+                            command=on_save,
+                            font=('Arial', 14, 'bold'),
+                            bg='#27ae60', fg='white',
+                            width=15, height=2,
+                            relief=tk.RAISED, bd=3,
+                            cursor='hand2')
+        save_btn.pack(side=tk.RIGHT, padx=(10, 0))
+        
+        # Cancel button
+        cancel_btn = tk.Button(button_frame, text="Cancel", 
+                              command=on_cancel,
+                              font=('Arial', 14, 'bold'),
+                              bg='#e74c3c', fg='white',
+                              width=15, height=2,
+                              relief=tk.RAISED, bd=3,
+                              cursor='hand2')
+        cancel_btn.pack(side=tk.RIGHT)
+        
+        # Handle window close
+        dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+        
+        # Bind Enter and Escape keys
+        def on_enter(event):
+            on_save()
+        
+        def on_escape(event):
+            on_cancel()
+        
+        dialog.bind('<Return>', on_enter)
+        dialog.bind('<Escape>', on_escape)
+        
+        # Focus and wait
+        dialog.focus()
+        dialog.wait_window()
+        
+        return result.get('success', False)
+
     def show_edit(self):
         # Clear the current frame and show edit interface
         if self.menu_window and self.menu_window.winfo_exists():
@@ -414,13 +817,6 @@ class MenuManager:
             records = self.attendance_db.get_attendance_report(today, today)
             
             checkins = [record for record in records if record.get('check_in_time')]
-            
-            if not checkins:
-                CustomDialog.show_info(self.menu_window,"Edit Check-ins", "No check-ins recorded for today.")
-                return
-            
-        
-            
             # Create edit window
             self.create_edit_checkins_window(checkins)
             
@@ -708,7 +1104,7 @@ class MenuManager:
                     success = self.attendance_db.add_employee(
                         name=user_name,
                         employee_id=None,
-                        department="Face Recognition",
+                        department="Kitchen",
                         position="Employee"
                     )
                     if success:
@@ -1250,6 +1646,300 @@ class MenuManager:
         """Export attendance report"""
         # This method will be implemented with dependency injection
         pass
+    def show_attendance_settings(self):
+        """Show attendance settings dialog"""
+        self.show_attendance_settings_dialog()
+    
+    def load_attendance_config(self):
+        """Load attendance configuration from file"""
+        import json
+        import os
+        
+        config_file = "attendance_config.json"
+        default_config = {
+            "auto_checkout_enabled": False,
+            "auto_checkout_time": "18:00",
+            "auto_checkout_days": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+        }
+        
+        try:
+            if os.path.exists(config_file):
+                with open(config_file, 'r') as f:
+                    config = json.load(f)
+                    # Ensure all required keys exist
+                    for key, value in default_config.items():
+                        if key not in config:
+                            config[key] = value
+                    return config
+            else:
+                return default_config
+        except Exception as e:
+            print(f"Error loading attendance config: {e}")
+            return default_config
+    
+    def save_attendance_config(self, config):
+        """Save attendance configuration to file"""
+        import json
+        
+        config_file = "attendance_config.json"
+        try:
+            with open(config_file, 'w') as f:
+                json.dump(config, f, indent=4)
+            return True
+        except Exception as e:
+            print(f"Error saving attendance config: {e}")
+            return False
+    
+    def show_attendance_settings_dialog(self):
+        """Show dialog for attendance settings"""
+        # Create dialog window
+        dialog = tk.Toplevel(self.menu_window)
+        dialog.grab_set()
+        dialog.title("Attendance Settings")
+        dialog.configure(bg='#2c3e50')
+        dialog.resizable(False, False)
+        dialog.transient(self.menu_window)
+        
+        # Center dialog relative to parent
+        dialog.update_idletasks()
+        width = 600
+        height = 500
+        
+        # Get parent window position and size
+        if self.menu_window:
+            self.menu_window.update_idletasks()
+            parent_x = self.menu_window.winfo_x()
+            parent_y = self.menu_window.winfo_y()
+            parent_width = self.menu_window.winfo_width()
+            parent_height = self.menu_window.winfo_height()
+        else:
+            parent_x = parent_y = parent_width = parent_height = 0
+        
+        # Calculate center position relative to parent
+        x = parent_x + (parent_width - width) // 2
+        y = parent_y + (parent_height - height) // 2
+        
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # Load current configuration
+        config = self.load_attendance_config()
+        
+        # Main frame
+        main_frame = tk.Frame(dialog, bg='#2c3e50')
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Title
+        title_label = tk.Label(main_frame, text="Attendance Settings", 
+                              font=('Arial', 18, 'bold'), 
+                              fg='#ecf0f1', bg='#2c3e50')
+        title_label.pack(pady=(0, 20))
+        
+        # Settings frame
+        settings_frame = tk.Frame(main_frame, bg='#34495e', relief=tk.RAISED, bd=2)
+        settings_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
+        
+        # Settings content
+        content_frame = tk.Frame(settings_frame, bg='#34495e')
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Auto Checkout Section
+        auto_checkout_section = tk.LabelFrame(content_frame, text="Automatic Check-out", 
+                                            font=('Arial', 14, 'bold'),
+                                            fg='#ecf0f1', bg='#34495e',
+                                            relief=tk.RAISED, bd=1)
+        auto_checkout_section.pack(fill=tk.X, pady=(0, 15))
+        
+        # Auto checkout enable/disable
+        auto_frame = tk.Frame(auto_checkout_section, bg='#34495e')
+        auto_frame.pack(fill=tk.X, padx=15, pady=15)
+        
+        # Toggle switch for auto checkout
+        auto_checkout_var = tk.BooleanVar(value=config.get("auto_checkout_enabled", False))
+        
+        auto_label = tk.Label(auto_frame, text="Enable Automatic Check-out:", 
+                             font=('Arial', 12, 'bold'), 
+                             fg='#ecf0f1', bg='#34495e')
+        auto_label.pack(side=tk.LEFT)
+        
+        # Custom toggle button
+        def toggle_auto_checkout():
+            current = auto_checkout_var.get()
+            auto_checkout_var.set(not current)
+            update_toggle_button()
+            update_time_fields()
+        
+        def update_toggle_button():
+            if auto_checkout_var.get():
+                toggle_btn.config(text="ON", bg='#27ae60', fg='white')
+            else:
+                toggle_btn.config(text="OFF", bg='#e74c3c', fg='white')
+        
+        def update_time_fields():
+            state = tk.NORMAL if auto_checkout_var.get() else tk.DISABLED
+            time_entry.config(state=state)
+            for day_cb in day_checkboxes.values():
+                day_cb.config(state=state)
+        
+        toggle_btn = tk.Button(auto_frame, text="OFF",
+                              command=toggle_auto_checkout,
+                              font=('Arial', 12, 'bold'),
+                              width=8, height=1,
+                              relief=tk.RAISED, bd=2,
+                              cursor='hand2')
+        toggle_btn.pack(side=tk.RIGHT, padx=(10, 0))
+        
+        # Time setting
+        time_frame = tk.Frame(auto_checkout_section, bg='#34495e')
+        time_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
+        
+        time_label = tk.Label(time_frame, text="Auto Check-out Time (24-hour format):", 
+                             font=('Arial', 12, 'bold'), 
+                             fg='#ecf0f1', bg='#34495e')
+        time_label.pack(side=tk.LEFT)
+        
+        time_entry = tk.Entry(time_frame, font=('Arial', 12), 
+                             bg='#ffffff', fg='#2c3e50', width=10)
+        time_entry.insert(0, config.get("auto_checkout_time", "18:00"))
+        time_entry.pack(side=tk.RIGHT, padx=(10, 0))
+        
+        # Days selection
+        days_frame = tk.Frame(auto_checkout_section, bg='#34495e')
+        days_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
+        
+        days_label = tk.Label(days_frame, text="Auto Check-out Days:", 
+                             font=('Arial', 12, 'bold'), 
+                             fg='#ecf0f1', bg='#34495e')
+        days_label.pack(anchor=tk.W, pady=(0, 10))
+        
+        # Day checkboxes
+        days_checkbox_frame = tk.Frame(days_frame, bg='#34495e')
+        days_checkbox_frame.pack(fill=tk.X)
+        
+        days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+        day_labels = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        day_checkboxes = {}
+        enabled_days = config.get("auto_checkout_days", [])
+        
+        for i, (day, label) in enumerate(zip(days, day_labels)):
+            day_var = tk.BooleanVar(value=day in enabled_days)
+            day_cb = tk.Checkbutton(days_checkbox_frame, text=label,
+                                   variable=day_var,
+                                   font=('Arial', 11),
+                                   fg='#ecf0f1', bg='#34495e',
+                                   selectcolor='#2c3e50',
+                                   activebackground='#34495e',
+                                   activeforeground='#ecf0f1')
+            day_cb.pack(side=tk.LEFT, padx=(0, 15))
+            day_checkboxes[day] = {'var': day_var, 'widget': day_cb}
+        
+        # Initialize toggle button and field states
+        update_toggle_button()
+        update_time_fields()
+        
+        # Information section
+        info_section = tk.LabelFrame(content_frame, text="Information", 
+                                   font=('Arial', 14, 'bold'),
+                                   fg='#ecf0f1', bg='#34495e',
+                                   relief=tk.RAISED, bd=1)
+        info_section.pack(fill=tk.X, pady=(0, 15))
+        
+        info_text = tk.Text(info_section, 
+                           font=('Arial', 10), 
+                           bg='#2c3e50', 
+                           fg='#ecf0f1',
+                           wrap=tk.WORD,
+                           relief=tk.FLAT,
+                           height=4,
+                           state=tk.NORMAL)
+        info_text.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        info_content = """Automatic Check-out will automatically check out employees at the specified time on selected days. This feature helps ensure accurate attendance records when employees forget to check out manually.
+
+Note: Employees who are already checked out will not be affected."""
+        
+        info_text.insert(tk.END, info_content)
+        info_text.config(state=tk.DISABLED)
+        
+        # Button frame
+        button_frame = tk.Frame(main_frame, bg='#2c3e50')
+        button_frame.pack(fill=tk.X)
+        
+        def on_save():
+            """Handle save button click"""
+            try:
+                # Validate time format
+                time_value = time_entry.get().strip()
+                if auto_checkout_var.get():
+                    try:
+                        from datetime import datetime
+                        datetime.strptime(time_value, "%H:%M")
+                    except ValueError:
+                        CustomDialog.show_error(dialog, "Invalid Time", "Please enter time in HH:MM format (e.g., 18:00)")
+                        return
+                
+                # Get selected days
+                selected_days = []
+                for day, day_data in day_checkboxes.items():
+                    if day_data['var'].get():
+                        selected_days.append(day)
+                
+                # Create new config
+                new_config = {
+                    "auto_checkout_enabled": auto_checkout_var.get(),
+                    "auto_checkout_time": time_value,
+                    "auto_checkout_days": selected_days
+                }
+                
+                # Save configuration
+                if self.save_attendance_config(new_config):
+                    CustomDialog.show_info(dialog, "Settings Saved", "Attendance settings have been saved successfully!")
+                    dialog.destroy()
+                else:
+                    CustomDialog.show_error(dialog, "Save Error", "Failed to save attendance settings!")
+                    
+            except Exception as e:
+                CustomDialog.show_error(dialog, "Error", f"Failed to save settings: {e}")
+        
+        def on_cancel():
+            """Handle cancel button click"""
+            dialog.destroy()
+        
+        # Save button
+        save_btn = tk.Button(button_frame, text="Save Settings", 
+                            command=on_save,
+                            font=('Arial', 14, 'bold'),
+                            bg='#27ae60', fg='white',
+                            width=15, height=2,
+                            relief=tk.RAISED, bd=3,
+                            cursor='hand2')
+        save_btn.pack(side=tk.RIGHT, padx=(10, 0))
+        
+        # Cancel button
+        cancel_btn = tk.Button(button_frame, text="Cancel", 
+                              command=on_cancel,
+                              font=('Arial', 14, 'bold'),
+                              bg='#e74c3c', fg='white',
+                              width=15, height=2,
+                              relief=tk.RAISED, bd=3,
+                              cursor='hand2')
+        cancel_btn.pack(side=tk.RIGHT)
+        
+        # Handle window close
+        dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+        
+        # Bind Enter and Escape keys
+        def on_enter(event):
+            on_save()
+        
+        def on_escape(event):
+            on_cancel()
+        
+        dialog.bind('<Return>', on_enter)
+        dialog.bind('<Escape>', on_escape)
+        
+        # Focus and wait
+        dialog.focus()
+        dialog.wait_window()
     
     def show_camera_settings(self):
         """Show camera settings"""
