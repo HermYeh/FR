@@ -6,6 +6,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import pickle
 import os
 import time
+from camera_config import camera_config
 
 # FaceNet imports
 FACENET_AVAILABLE = False
@@ -32,16 +33,19 @@ class FaceProcessor:
             return False
         
         try:
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            # Use GPU if enabled and available
+            use_gpu = camera_config.get("enable_gpu", True)
+            device = torch.device('cuda' if (torch.cuda.is_available() and use_gpu) else 'cpu')
             print(f"Using device: {device}")
             
-            # Optimized MTCNN settings
+            # Dynamic MTCNN settings
+            mtcnn_config = camera_config.get_mtcnn_config()
             self.mtcnn = MTCNN(
                 image_size=160,
                 margin=0,
-                min_face_size=30,  # Increased for better performance
-                thresholds=[0.7, 0.8, 0.8],  # Higher thresholds for better accuracy
-                factor=0.709,
+                min_face_size=mtcnn_config["min_face_size"],
+                thresholds=mtcnn_config["thresholds"],
+                factor=mtcnn_config["factor"],
                 post_process=True,
                 device=device,
                 keep_all=False  # Keep only best face for better performance
@@ -51,11 +55,11 @@ class FaceProcessor:
             self.facenet_model = InceptionResnetV1(pretrained='vggface2').eval().to(device)
             
             self.load_face_embeddings()
-            print("Optimized FaceNet initialized successfully")
+            print(f"✅ FaceNet initialized: Device={device}, Min Face Size={mtcnn_config['min_face_size']}")
             return True
             
         except Exception as e:
-            print(f"Failed to initialize FaceNet: {e}")
+            print(f"❌ Failed to initialize FaceNet: {e}")
             return False
     
     def detect_faces_optimized(self, frame):
@@ -64,8 +68,8 @@ class FaceProcessor:
             if not self.mtcnn:
                 return []
             
-            # Resize frame for faster processing
-            scale_factor = 0.5
+            # Dynamic scale factor for faster processing
+            scale_factor = camera_config.get("detection_scale_factor", 0.5)
             small_frame = cv2.resize(frame, (0, 0), fx=scale_factor, fy=scale_factor)
             
             # Convert to PIL
@@ -80,8 +84,10 @@ class FaceProcessor:
             if detection_result and len(detection_result) >= 2:
                 boxes, probs = detection_result[0], detection_result[1]
                 if boxes is not None and probs is not None:
+                    # Dynamic detection threshold
+                    detection_threshold = camera_config.get("detection_confidence_threshold", 0.8)
                     for box, prob in zip(boxes, probs):
-                        if prob > 0.8:  # Higher threshold for better accuracy
+                        if prob > detection_threshold:
                             # Scale back to original size
                             x, y, x2, y2 = (box / scale_factor).astype(int)
                             w, h = x2 - x, y2 - y
@@ -99,9 +105,10 @@ class FaceProcessor:
     def is_valid_face_region(self, x, y, w, h, frame_shape):
         """Validate face region coordinates"""
         frame_height, frame_width = frame_shape[:2]
+        min_size = camera_config.get("min_face_region_size", 20)
         return (0 <= x < frame_width and 0 <= y < frame_height and 
                 x + w <= frame_width and y + h <= frame_height and 
-                w > 20 and h > 20)
+                w > min_size and h > min_size)
     
     def process_face_recognition_optimized(self, frame, x, y, w, h):
         """Optimized face recognition processing - returns (name, confidence)"""
@@ -121,7 +128,8 @@ class FaceProcessor:
                 if face_embedding is not None:
                     self.embedding_cache[cache_key] = face_embedding
                     # Limit cache size
-                    if len(self.embedding_cache) > 100:
+                    max_cache_size = camera_config.get("embedding_cache_size", 100)
+                    if len(self.embedding_cache) > max_cache_size:
                         self.embedding_cache.pop(next(iter(self.embedding_cache)))
             
             if face_embedding is not None:
@@ -164,11 +172,15 @@ class FaceProcessor:
             print(f"Embedding error: {e}")
             return None
     
-    def recognize_face_embedding_optimized(self, face_embedding, threshold=0.7):
+    def recognize_face_embedding_optimized(self, face_embedding, threshold=None):
         """Optimized face recognition with vectorized operations"""
         try:
             if face_embedding is None or not self.face_embeddings:
                 return "Unknown", 0
+            
+            # Use dynamic recognition threshold if not provided
+            if threshold is None:
+                threshold = camera_config.get("recognition_threshold", 0.7)
             
             best_match = "Unknown"
             best_similarity = 0
@@ -258,3 +270,51 @@ class FaceProcessor:
         except Exception as e:
             print(f"Error processing training image {image_path}: {e}")
             return None 
+
+    def apply_config_changes(self):
+        """Apply configuration changes to face processing"""
+        try:
+            print("🔄 Applying face processing configuration changes...")
+            
+            # Check if MTCNN reinitialize is needed
+            if self.mtcnn is not None:
+                # Get current and new MTCNN config
+                new_mtcnn_config = camera_config.get_mtcnn_config()
+                
+                # Reinitialize MTCNN with new settings
+                use_gpu = camera_config.get("enable_gpu", True)
+                device = self.mtcnn.device if hasattr(self.mtcnn, 'device') else None
+                
+                if device is None:
+                    device = torch.device('cuda' if (torch.cuda.is_available() and use_gpu) else 'cpu')
+                
+                try:
+                    self.mtcnn = MTCNN(
+                        image_size=160,
+                        margin=0,
+                        min_face_size=new_mtcnn_config["min_face_size"],
+                        thresholds=new_mtcnn_config["thresholds"],
+                        factor=new_mtcnn_config["factor"],
+                        post_process=True,
+                        device=device,
+                        keep_all=False
+                    )
+                    print(f"✅ MTCNN updated with new settings: Min Face Size={new_mtcnn_config['min_face_size']}")
+                except Exception as e:
+                    print(f"❌ Failed to update MTCNN: {e}")
+                    return False
+            
+            # Clear embedding cache to apply new cache size
+            max_cache_size = camera_config.get("embedding_cache_size", 100)
+            if len(self.embedding_cache) > max_cache_size:
+                # Keep only the most recent entries
+                items = list(self.embedding_cache.items())
+                self.embedding_cache = dict(items[-max_cache_size:])
+                print(f"🗑️  Trimmed embedding cache to {max_cache_size} entries")
+            
+            print("✅ Face processing configuration updated successfully")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error applying face processing configuration: {e}")
+            return False 

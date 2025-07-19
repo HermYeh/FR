@@ -18,18 +18,21 @@ class AttendanceDatabase:
     def __init__(self, db_path: str = "attendance.db"):
         """Initialize the attendance database"""
         self.db_path = db_path
-        self.conn = None
-        self.cursor = None
+        # Remove persistent connection attributes
         self.init_database()
+    
+    def _get_connection(self):
+        """Get a new database connection for the current thread"""
+        return sqlite3.connect(self.db_path, check_same_thread=False)
     
     def init_database(self):
         """Initialize the database and create tables if they don't exist"""
         try:
-            self.conn = sqlite3.connect(self.db_path)
-            self.cursor = self.conn.cursor()
+            conn = self._get_connection()
+            cursor = conn.cursor()
             
             # Create attendance table
-            self.cursor.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS attendance (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
@@ -43,7 +46,7 @@ class AttendanceDatabase:
             ''')
             
             # Create employees table for registered users
-            self.cursor.execute('''
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS employees (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
@@ -56,12 +59,13 @@ class AttendanceDatabase:
             ''')
             
             # Create index for faster queries
-            self.cursor.execute('''
+            cursor.execute('''
                 CREATE INDEX IF NOT EXISTS idx_attendance_name_date 
                 ON attendance(name, date)
             ''')
             
-            self.conn.commit()
+            conn.commit()
+            conn.close()
             print(f"Database initialized: {self.db_path}")
             
         except Exception as e:
@@ -70,15 +74,15 @@ class AttendanceDatabase:
     def add_employee(self, name: str, employee_id: Optional[str] = None, 
                     department: Optional[str] = None, position: Optional[str] = None) -> bool:
         """Add a new employee to the database"""
-        if self.conn is None or self.cursor is None:
-            print("Database not initialized")
-            return False
         try:
-            self.cursor.execute('''
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
                 INSERT INTO employees (name, employee_id, department, position)
                 VALUES (?, ?, ?, ?)
             ''', (name, employee_id, department, position))
-            self.conn.commit()
+            conn.commit()
+            conn.close()
             print(f"Employee {name} added successfully")
             return True
         except sqlite3.IntegrityError:
@@ -90,18 +94,17 @@ class AttendanceDatabase:
     
     def get_employees(self) -> List[Dict]:
         """Get all active employees"""
-        if self.conn is None or self.cursor is None:
-            print("Database not initialized")
-            return []
         try:
-            self.cursor.execute('''
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
                 SELECT id, name, employee_id, department, position 
                 FROM employees 
                 WHERE is_active = 1
                 ORDER BY name
             ''')
             employees = []
-            for row in self.cursor.fetchall():
+            for row in cursor.fetchall():
                 employees.append({
                     'id': row[0],
                     'name': row[1],
@@ -109,6 +112,7 @@ class AttendanceDatabase:
                     'department': row[3],
                     'position': row[4]
                 })
+            conn.close()
             return employees
         except Exception as e:
             print(f"Error getting employees: {e}")
@@ -116,32 +120,34 @@ class AttendanceDatabase:
     
     def check_in(self, name: str, check_in_time: Optional[str] = None) -> bool:
         """Record check-in for an employee"""
-        if self.conn is None or self.cursor is None:
-            print("Database not initialized")
-            return False
         try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
             if check_in_time is None:
                 check_in_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
             current_date = datetime.now().strftime("%Y-%m-%d")
             
             # Check if already checked in today
-            self.cursor.execute('''
+            cursor.execute('''
                 SELECT id FROM attendance 
                 WHERE name = ? AND date = ? AND check_in_time IS NOT NULL
             ''', (name, current_date))
             
-            if self.cursor.fetchone():
+            if cursor.fetchone():
+                conn.close()
                 print(f"{name} already checked in today")
                 return False
             
             # Record check-in
-            self.cursor.execute('''
+            cursor.execute('''
                 INSERT INTO attendance (name, date, check_in_time)
                 VALUES (?, ?, ?)
             ''', (name, current_date, check_in_time))
             
-            self.conn.commit()
+            conn.commit()
+            conn.close()
             print(f"{name} checked in at {check_in_time}")
             return True
             
@@ -151,23 +157,24 @@ class AttendanceDatabase:
     
     def check_out(self, name: str, check_out_time: Optional[str] = None) -> bool:
         """Record check-out for an employee"""
-        if self.conn is None or self.cursor is None:
-            print("Database not initialized")
-            return False
         try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
             if check_out_time is None:
                 check_out_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
             current_date = datetime.now().strftime("%Y-%m-%d")
             
             # Find today's check-in record
-            self.cursor.execute('''
+            cursor.execute('''
                 SELECT id, check_in_time FROM attendance 
                 WHERE name = ? AND date = ? AND check_in_time IS NOT NULL
             ''', (name, current_date))
             
-            record = self.cursor.fetchone()
+            record = cursor.fetchone()
             if not record:
+                conn.close()
                 print(f"No check-in record found for {name} today")
                 return False
             
@@ -179,13 +186,14 @@ class AttendanceDatabase:
             total_hours = (check_out_dt - check_in_dt).total_seconds() / 3600
             
             # Update check-out time
-            self.cursor.execute('''
+            cursor.execute('''
                 UPDATE attendance 
                 SET check_out_time = ?, total_hours = ?
                 WHERE id = ?
             ''', (check_out_time, total_hours, attendance_id))
             
-            self.conn.commit()
+            conn.commit()
+            conn.close()
             print(f"{name} checked out at {check_out_time} (Total hours: {total_hours:.2f})")
             return True
             
@@ -195,20 +203,21 @@ class AttendanceDatabase:
     
     def delete_checkin(self, name: str, check_in_time: str) -> bool:
         """Delete a specific check-in record"""
-        if self.conn is None or self.cursor is None:
-            print("Database not initialized")
-            return False
         try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
             current_date = datetime.now().strftime("%Y-%m-%d")
             
             # Find and delete the specific check-in record
-            self.cursor.execute('''
+            cursor.execute('''
                 DELETE FROM attendance 
                 WHERE name = ? AND date = ? AND check_in_time = ?
             ''', (name, current_date, check_in_time))
             
-            rows_affected = self.cursor.rowcount
-            self.conn.commit()
+            rows_affected = cursor.rowcount
+            conn.commit()
+            conn.close()
             
             if rows_affected > 0:
                 print(f"Deleted check-in for {name} at {check_in_time}")
@@ -224,10 +233,10 @@ class AttendanceDatabase:
     def get_attendance_report(self, start_date: Optional[str] = None, end_date: Optional[str] = None, 
                             employee_name: Optional[str] = None) -> List[Dict]:
         """Get attendance report with optional filters"""
-        if self.conn is None or self.cursor is None:
-            print("Database not initialized")
-            return []
         try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
             query = '''
                 SELECT name, date, check_in_time, check_out_time, total_hours, status
                 FROM attendance
@@ -249,9 +258,9 @@ class AttendanceDatabase:
             
             query += " ORDER BY date DESC, name"
             
-            self.cursor.execute(query, params)
+            cursor.execute(query, params)
             records = []
-            for row in self.cursor.fetchall():
+            for row in cursor.fetchall():
                 records.append({
                     'name': row[0],
                     'date': row[1],
@@ -260,6 +269,7 @@ class AttendanceDatabase:
                     'total_hours': row[4],
                     'status': row[5]
                 })
+            conn.close()
             return records
             
         except Exception as e:
@@ -268,33 +278,35 @@ class AttendanceDatabase:
     
     def get_daily_summary(self, target_date: Optional[str] = None) -> Dict:
         """Get daily attendance summary"""
-        if self.conn is None or self.cursor is None:
-            print("Database not initialized")
-            return {}
         try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
             if target_date is None:
                 target_date = datetime.now().strftime("%Y-%m-%d")
             
             # Get total employees
-            self.cursor.execute('SELECT COUNT(*) FROM employees WHERE is_active = 1')
-            total_employees = self.cursor.fetchone()[0]
+            cursor.execute('SELECT COUNT(*) FROM employees WHERE is_active = 1')
+            total_employees = cursor.fetchone()[0]
             
             # Get present employees
-            self.cursor.execute('''
+            cursor.execute('''
                 SELECT COUNT(DISTINCT name) FROM attendance 
                 WHERE date = ? AND check_in_time IS NOT NULL
             ''', (target_date,))
-            present_employees = self.cursor.fetchone()[0]
+            present_employees = cursor.fetchone()[0]
             
             # Get absent employees
             absent_employees = total_employees - present_employees
             
             # Get average hours worked
-            self.cursor.execute('''
+            cursor.execute('''
                 SELECT AVG(total_hours) FROM attendance 
                 WHERE date = ? AND total_hours IS NOT NULL
             ''', (target_date,))
-            avg_hours = self.cursor.fetchone()[0] or 0
+            avg_hours = cursor.fetchone()[0] or 0
+            
+            conn.close()
             
             return {
                 'date': target_date,
@@ -311,13 +323,13 @@ class AttendanceDatabase:
     
     def import_from_csv(self, csv_file: str) -> bool:
         """Import attendance data from CSV file"""
-        if self.conn is None or self.cursor is None:
-            print("Database not initialized")
-            return False
         try:
             if not os.path.exists(csv_file):
                 print(f"CSV file not found: {csv_file}")
                 return False
+            
+            conn = self._get_connection()
+            cursor = conn.cursor()
             
             with open(csv_file, 'r') as file:
                 csv_reader = csv.DictReader(file)
@@ -333,14 +345,14 @@ class AttendanceDatabase:
                             time_str = dt.strftime("%Y-%m-%d %H:%M:%S")
                             
                             # Check if this is a check-in (first record of the day for this person)
-                            self.cursor.execute('''
+                            cursor.execute('''
                                 SELECT id FROM attendance 
                                 WHERE name = ? AND date = ?
                             ''', (name, date_str))
                             
-                            if not self.cursor.fetchone():
+                            if not cursor.fetchone():
                                 # This is a check-in
-                                self.cursor.execute('''
+                                cursor.execute('''
                                     INSERT INTO attendance (name, date, check_in_time)
                                     VALUES (?, ?, ?)
                                 ''', (name, date_str, time_str))
@@ -349,7 +361,8 @@ class AttendanceDatabase:
                             print(f"Error parsing datetime {datetime_str}: {e}")
                             continue
             
-            self.conn.commit()
+            conn.commit()
+            conn.close()
             print(f"Successfully imported data from {csv_file}")
             return True
             
@@ -359,9 +372,6 @@ class AttendanceDatabase:
     
     def export_to_csv(self, filename: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> bool:
         """Export attendance data to CSV"""
-        if self.conn is None or self.cursor is None:
-            print("Database not initialized")
-            return False
         try:
             records = self.get_attendance_report(start_date, end_date)
             
@@ -389,9 +399,6 @@ class AttendanceDatabase:
     
     def get_employee_attendance(self, employee_name: str, days: int = 30) -> List[Dict]:
         """Get attendance history for a specific employee"""
-        if self.conn is None or self.cursor is None:
-            print("Database not initialized")
-            return []
         try:
             end_date = datetime.now().strftime("%Y-%m-%d")
             if pd is not None:
@@ -409,11 +416,38 @@ class AttendanceDatabase:
             print(f"Error getting employee attendance: {e}")
             return []
     
+
+    def get_checked_in_employees(self) -> List[Dict]:
+        """Get all employees who are currently checked in (no check-out yet today)"""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            
+            cursor.execute('''
+                SELECT name, check_in_time 
+                FROM attendance 
+                WHERE date = ? AND check_in_time IS NOT NULL AND check_out_time IS NULL
+                ORDER BY name
+            ''', (current_date,))
+            
+            checked_in = []
+            for row in cursor.fetchall():
+                checked_in.append({
+                    'name': row[0],
+                    'check_in_time': row[1]
+                })
+            conn.close()
+            return checked_in
+            
+        except Exception as e:
+            print(f"Error getting checked-in employees: {e}")
+            return []
+    
     def close(self):
-        """Close database connection"""
-        if self.conn:
-            self.conn.close()
-            print("Database connection closed")
+        """Close database connection - now this is a no-op since we don't maintain persistent connections"""
+        print("Database connections are now managed per-operation")
 
 def main():
     """Main function to demonstrate the attendance database"""

@@ -3,7 +3,10 @@ import os
 import threading
 import time
 from datetime import datetime
+import menu_ui
 from ui_dialogs import CustomDialog
+from menu_ui import MenuManager
+
 import tkinter as tk
 
 class TrainingManager:
@@ -18,21 +21,13 @@ class TrainingManager:
         self.is_new_user = False
         self.names = []
         
-    def get_user_name_input(self, root, screen_width, screen_height):
-        dialog = tk.Toplevel(root)
-        dialog.grab_set()
-        dialog.transient(root)
-        dialog.title("Face Recognition Training - Name Input")
-        dialog.configure(bg='#2c3e50')
-        
-        # Center on screen with optimized size
-        dialog_width, dialog_height = 700, 600
-        x = (screen_width - dialog_width) // 2
-        y = (screen_height - dialog_height) // 2
-        dialog.geometry(f"{dialog_width}x{dialog_height}+{x}+{y}")
+    def get_user_name_input(self, parent_window, screen_width, screen_height, restore_callback=None):
+        # Clear existing content from the parent window
+        for widget in parent_window.winfo_children():
+            widget.destroy()
         
         # Main container with better padding
-        main_frame = tk.Frame(dialog, bg='#2c3e50')
+        main_frame = tk.Frame(parent_window, bg='#2c3e50')
         main_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
         
         # Title section
@@ -95,20 +90,22 @@ class TrainingManager:
         def confirm():
             """Validate and confirm input"""
             name = name_var.get().strip()
+            parent_window.destroy()
             if name:
                 result['name'] = name
-                dialog.destroy()
+                main_frame.destroy()
             else:
                 # Flash entry field for error feedback
                 original_bg = name_entry.cget('bg')
                 name_entry.config(bg='#ffcccb')
-                dialog.after(200, lambda: name_entry.config(bg=original_bg))
+                main_frame.after(200, lambda: name_entry.config(bg=original_bg))
                 update_cursor()
         
         def cancel():
             """Cancel input"""
-            dialog.destroy()
-        
+            main_frame.destroy()
+            if restore_callback:
+                restore_callback()
         # Enhanced button creation with better styling
         def create_key_button(parent, text, command, style='normal',width=4):
             """Create optimized keyboard button"""
@@ -229,16 +226,16 @@ class TrainingManager:
         # Bind events
         name_entry.bind('<Button-1>', on_entry_click)
         name_entry.bind('<FocusIn>', lambda e: update_cursor())
-        dialog.bind('<Key>', on_key_press)
-        dialog.bind('<Return>', lambda e: confirm())
-        dialog.bind('<Escape>', lambda e: cancel())
+        main_frame.bind('<Key>', on_key_press)
+        main_frame.bind('<Return>', lambda e: confirm())
+        main_frame.bind('<Escape>', lambda e: cancel())
         
         # Focus management
-        dialog.focus()
+        main_frame.focus()
         name_entry.focus()
         
         # Wait for dialog completion
-        dialog.wait_window()
+        main_frame.wait_window()
         
         return result['name'] if result['name'] else None
     
@@ -448,34 +445,41 @@ class TrainingManager:
             print(f"Error updating names list: {e}")
     
     def save_checkin_photo(self, name, frame):
-        """Save a photo of the current video feed when employee checks in"""
+        """Save a photo when employee checks in"""
         try:
-            # Get current date and time
-            now = datetime.now()
-            current_date = now.strftime("%Y-%m-%d")
-            current_time = now.strftime("%H-%M-%S")  # Use hyphens for filename compatibility
+            # Create checkout photos directory
+            today = datetime.now().strftime("%Y-%m-%d")
+            checkin_dir = f"CheckinPhoto/{today}"
+            os.makedirs(checkin_dir, exist_ok=True)
             
-            # Create folder structure: CheckinPhoto/{current_date}/
-            base_folder = "CheckinPhoto"
-            date_folder = os.path.join(base_folder, current_date)
-            
-            # Create directories if they don't exist
-            os.makedirs(date_folder, exist_ok=True)
-            
-            # Clean the employee name for filename (remove special characters)
+            # Generate filename with timestamp
+            timestamp = datetime.now().strftime("%H-%M-%S")
             clean_name = self.get_clean_name(name)
-            
-            # Create filename: {employee_name}_{time}.jpg
-            filename = f"{clean_name}_{current_time}.jpg"
-            filepath = os.path.join(date_folder, filename)
+            filename = f"{checkin_dir}/{clean_name}_{timestamp}.jpg"
             
             # Save the photo
-            success = cv2.imwrite(filepath, frame)
+            cv2.imwrite(filename, frame)
+            print(f"Saved check-in photo: {filename}")
             
-            if success:
-                print(f"📸 Check-in photo saved: {filepath}")
-            else:
-                print(f"❌ Failed to save check-in photo: {filepath}")
-                
         except Exception as e:
-            print(f"❌ Error saving check-in photo for {name}: {e}") 
+            print(f"Error saving check-in photo: {e}")
+    
+    def save_checkout_photo(self, name, frame):
+        """Save a photo when employee checks out"""
+        try:
+            # Create checkout photos directory
+            today = datetime.now().strftime("%Y-%m-%d")
+            checkout_dir = f"CheckoutPhoto/{today}"
+            os.makedirs(checkout_dir, exist_ok=True)
+            
+            # Generate filename with timestamp
+            timestamp = datetime.now().strftime("%H-%M-%S")
+            clean_name = self.get_clean_name(name)
+            filename = f"{checkout_dir}/{clean_name}_{timestamp}.jpg"
+            
+            # Save the photo
+            cv2.imwrite(filename, frame)
+            print(f"Saved check-out photo: {filename}")
+            
+        except Exception as e:
+            print(f"Error saving check-out photo: {e}") 

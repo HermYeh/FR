@@ -15,12 +15,14 @@ class MenuManager:
         self.dates_per_page = 30
         self.selected_date = None
         self.attendance_db = AttendanceDatabase()
+        self._injected_start_capture = lambda menu_window=None: None
+    
        
     def show_main_menu_window(self, root):
         self.menu_window = tk.Toplevel(root)
         self.menu_window.grab_set()  
         self.menu_window.transient(root)
-        self.start_capture = root.start_capture(self)
+    
         self.menu_window.title("TS Ma's Attendance System")
         self.menu_window.configure(bg='#2c3e50')
         
@@ -116,7 +118,7 @@ class MenuManager:
         edit_btn.pack(side=tk.LEFT, padx=(0, 10))
 
         edit_employee_btn = tk.Button(buttons_frame, text="Add Employee", 
-                            command=lambda: self.start_capture() if self.start_capture else self.show_add_employee(),
+                            command=self.start_capture,
                             bg='#27ae60', fg='white', **button_config)
         edit_employee_btn.pack(side=tk.LEFT)
     
@@ -198,6 +200,7 @@ class MenuManager:
     def close_menu_window(self):
         if self.menu_window:
             self.menu_window.destroy()
+    
     
     def show_employee(self, parent):
         parent.destroy()
@@ -1945,7 +1948,13 @@ Note: Employees who are already checked out will not be affected."""
         """Show camera settings"""
         # This method will be implemented with dependency injection
         pass
-    
+    def start_capture(self):
+        # Call the main UI's start_capture with menu window context
+        try:
+            self._injected_start_capture(self.menu_window)
+        except TypeError:
+            # Fallback if function doesn't accept arguments (default lambda)
+            self.show_add_employee()
     def show_recognition_settings(self):
         """Show recognition settings"""
         # This method will be implemented with dependency injection

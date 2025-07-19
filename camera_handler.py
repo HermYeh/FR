@@ -5,6 +5,7 @@ import gc
 from PIL import Image, ImageTk
 from collections import deque
 from typing import Optional
+from camera_config import camera_config
 
 class CameraHandler:
     """Handles camera operations and video processing"""
@@ -13,10 +14,6 @@ class CameraHandler:
         self.camera = None
         self.frame_count = 0
         self.last_frame_time = time.time()
-        self.target_fps = 10
-        self.frame_interval = 1000 // self.target_fps
-        self.face_detection_interval = 5
-        self.face_cache = deque(maxlen=10)
         self.canvas_size = None
         self.current_frame_tk = None
         self.last_display_frame: Optional[np.ndarray] = None
@@ -25,31 +22,64 @@ class CameraHandler:
         # Face tracking for persistent recognition
         self.tracked_faces = {}
         self.face_track_id = 0
-        self.max_track_distance = 50
-        self.track_timeout = 30
         self.current_frame_faces = []
+        
+        # Load dynamic configuration
+        self.update_config()
+    
+    def update_config(self):
+        """Update configuration from camera_config"""
+        self.target_fps = camera_config.get("target_fps", 10)
+        self.frame_interval = 1000 // self.target_fps
+        self.face_detection_interval = camera_config.get("face_detection_interval", 5)
+        self.face_cache = deque(maxlen=camera_config.get("face_cache_size", 10))
+        self.max_track_distance = camera_config.get("max_track_distance", 50)
+        self.track_timeout = camera_config.get("track_timeout", 30)
+        
+        # Update frame interval when FPS changes
+        self.frame_interval = 1000 // self.target_fps
+        
+        print(f"📷 Camera config updated: FPS={self.target_fps}, Detection Interval={self.face_detection_interval}")
     
     def start_camera_optimized(self):
         """Start camera with optimized settings"""
         try:
-            self.camera = cv2.VideoCapture(0)
+            # Try primary camera first, then fallback
+            camera_index = camera_config.get("camera_index", 0)
+            self.camera = cv2.VideoCapture(camera_index)
             if not self.camera.isOpened():
-                self.camera = cv2.VideoCapture(1)
+                # Try alternative camera
+                alt_index = 1 if camera_index == 0 else 0
+                self.camera = cv2.VideoCapture(alt_index)
                 if not self.camera.isOpened():
                     return False
             
-            # Optimized camera settings for better performance
-            self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-            self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-            self.camera.set(cv2.CAP_PROP_FPS, self.target_fps)
-            self.camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            self.camera.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
+            # Apply dynamic camera settings
+            cam_props = camera_config.get_camera_properties()
+            self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, cam_props["width"])
+            self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, cam_props["height"])
+            self.camera.set(cv2.CAP_PROP_FPS, cam_props["fps"])
+            self.camera.set(cv2.CAP_PROP_BUFFERSIZE, cam_props["buffer_size"])
+            self.camera.set(cv2.CAP_PROP_AUTO_EXPOSURE, cam_props["auto_exposure"])
             
-            print("Camera started with optimized settings")
+            # Apply additional camera properties if supported
+            try:
+                if cam_props["brightness"] != 0:
+                    self.camera.set(cv2.CAP_PROP_BRIGHTNESS, cam_props["brightness"])
+                if cam_props["contrast"] != 0:
+                    self.camera.set(cv2.CAP_PROP_CONTRAST, cam_props["contrast"])
+                if cam_props["saturation"] != 0:
+                    self.camera.set(cv2.CAP_PROP_SATURATION, cam_props["saturation"])
+                if cam_props["gain"] != 0:
+                    self.camera.set(cv2.CAP_PROP_GAIN, cam_props["gain"])
+            except Exception as e:
+                print(f"Some camera properties not supported: {e}")
+            
+            print(f"✅ Camera started with settings: {cam_props['width']}x{cam_props['height']} @ {cam_props['fps']}fps")
             return True
             
         except Exception as e:
-            print(f"Failed to start camera: {e}")
+            print(f"❌ Failed to start camera: {e}")
             return False
     
     def get_cached_faces(self, frame, face_processor):
@@ -192,9 +222,11 @@ class CameraHandler:
             # Update name if recognition was successful
             if face_idx < len(face_names) and face_names[face_idx] != "Unknown":
                 track_data['name'] = face_names[face_idx]
-                track_data['confidence'] = min(track_data['confidence'] + 0.1, 1.0)  # Increase confidence
+                boost_factor = camera_config.get("confidence_boost_factor", 0.1)
+                track_data['confidence'] = min(track_data['confidence'] + boost_factor, 1.0)  # Increase confidence
             else:
-                track_data['confidence'] = max(track_data['confidence'] - 0.05, 0.1)  # Decrease confidence
+                decay_factor = camera_config.get("confidence_decay_factor", 0.05)
+                track_data['confidence'] = max(track_data['confidence'] - decay_factor, 0.1)  # Decrease confidence
         
         # Create new tracks for unmatched faces
         for face_idx in unmatched_faces:
@@ -265,8 +297,15 @@ class CameraHandler:
         try:
             ret, frame = self.camera.read()
             if ret and frame is not None:
-                # Rotate frame
-                frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                # Apply dynamic frame rotation
+                rotation = camera_config.get("frame_rotation", "90_ccw")
+                if rotation == "90_ccw":
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                elif rotation == "90_cw":
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+                elif rotation == "180":
+                    frame = cv2.rotate(frame, cv2.ROTATE_180)
+                # "none" - no rotation
                 
                 # Validate frame dimensions
                 if frame.shape[0] > 0 and frame.shape[1] > 0:
@@ -294,7 +333,41 @@ class CameraHandler:
     
     def cleanup_memory(self):
         """Perform memory cleanup"""
-        if self.frame_count % 10 == 0:  # Every 10 frames
+        cleanup_interval = camera_config.get("memory_cleanup_interval", 10)
+        if self.frame_count % cleanup_interval == 0:
             gc.collect()
             # Reset canvas size cache to handle window resizing
             self.canvas_size = None 
+
+    def apply_config_changes(self):
+        """Apply configuration changes and restart camera if needed"""
+        try:
+            print("🔄 Applying camera configuration changes...")
+            
+            # Update internal configuration
+            old_fps = self.target_fps
+            old_resolution = (camera_config.get("frame_width", 640), camera_config.get("frame_height", 480))
+            
+            self.update_config()
+            
+            # Check if camera restart is needed
+            new_resolution = (camera_config.get("frame_width", 640), camera_config.get("frame_height", 480))
+            restart_needed = (old_fps != self.target_fps or old_resolution != new_resolution)
+            
+            if restart_needed and self.camera is not None:
+                print("📹 Restarting camera with new settings...")
+                self.cleanup_camera()
+                success = self.start_camera_optimized()
+                if success:
+                    print("✅ Camera restarted successfully with new configuration")
+                    return True
+                else:
+                    print("❌ Failed to restart camera with new settings")
+                    return False
+            else:
+                print("✅ Configuration updated (no camera restart needed)")
+                return True
+                
+        except Exception as e:
+            print(f"❌ Error applying camera configuration: {e}")
+            return False 

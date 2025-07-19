@@ -15,6 +15,7 @@ class AttendanceManager:
         self.last_checkin_name = ""
         self.last_checkin_time = ""
         self.has_checkins_today = False
+        self.last_recognized_employee = None  # Track the last recognized employee for checkout
         
     def initialize_attendance_database(self):
         """Initialize attendance database"""
@@ -39,6 +40,9 @@ class AttendanceManager:
         
         self.last_recognition_time[name] = current_time
         
+        # Update last recognized employee for potential checkout
+        self.last_recognized_employee = name
+        
         try:
             # The database check_in method already handles checking if person checked in today
             if self.attendance_db.check_in(name):
@@ -49,6 +53,22 @@ class AttendanceManager:
                 return False
         except Exception as e:
             print(f"Error checking in {name}: {e}")
+            return False
+    
+    def handle_checkout_optimized(self, name):
+        """Handle checkout for the specified employee"""
+        if not self.attendance_db:
+            return False
+        
+        try:
+            if self.attendance_db.check_out(name):
+                print(f"✅ {name} checked out at {datetime.now().strftime('%H:%M:%S')}")
+                return True
+            else:
+                print(f"ℹ️  {name} check-out failed - no check-in record found or already checked out")
+                return False
+        except Exception as e:
+            print(f"Error checking out {name}: {e}")
             return False
     
     def sync_dataset_with_database(self):

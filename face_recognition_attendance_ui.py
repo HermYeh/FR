@@ -24,6 +24,7 @@ from training_manager import TrainingManager
 from attendance_manager import AttendanceManager
 from file_manager import FileManager
 from menu_ui import MenuManager
+from camera_config import camera_config
 
 # Optimized environment setup
 os.environ.update({
@@ -47,7 +48,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         self.attendance_manager = AttendanceManager()
         self.file_manager = FileManager()
         self.menu_manager = MenuManager()
-        
+      
         # Core variables
         self.is_capturing = False
         self.is_training = False
@@ -163,8 +164,8 @@ class OptimizedFaceRecognitionAttendanceUI:
         left_frame = tk.Frame(self.button_frame, bg='#34495e')
         left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
         
-        self.capture_button = tk.Button(left_frame, text="Add New Employee", command=self.start_capture,
-                                      bg='#27ae60', fg='white', width=18, **main_button_config)
+        self.capture_button = tk.Button(left_frame, text="Check Out", command=self.check_out_last_face,
+                                      bg='#e74c3c', fg='white', width=18, **main_button_config)
         self.capture_button.pack(fill=tk.BOTH, expand=True)
         
         # Right side - Control buttons
@@ -225,7 +226,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         # Pause video processing
         self.camera_handler.video_paused = True
         print("Video processing paused for menu")
-        
+    
         # Set callback functions for menu manager
         self.menu_manager.export_attendance_report = lambda: self.attendance_manager.export_attendance_report(self.root)
         self.menu_manager.show_camera_settings = lambda: self.file_manager.show_camera_settings(self.root)
@@ -233,7 +234,9 @@ class OptimizedFaceRecognitionAttendanceUI:
         self.menu_manager.show_database_settings = lambda: self.file_manager.show_database_settings(self.root, self.attendance_manager)
         self.menu_manager.reset_system = lambda: self.reset_system()
         self.menu_manager.cleanup_and_exit = self.cleanup_and_exit
-        
+        setattr(self.menu_manager, '_injected_start_capture', lambda menu_window: self.start_capture(menu_window))
+        setattr(self.menu_manager, '_capture_injected', True)
+  
         # Show menu and set close callback
         original_close = self.menu_manager.close_menu_window
         self.menu_manager.close_menu_window = lambda: self.close_menu_and_resume_video(original_close)
@@ -329,7 +332,8 @@ class OptimizedFaceRecognitionAttendanceUI:
             name = "Unknown"
             confidence = 0.0
             
-            if self.camera_handler.frame_count % 3 == 0:  # Every 3rd frame
+            recognition_interval = camera_config.get("recognition_interval", 3)
+            if self.camera_handler.frame_count % recognition_interval == 0:
                 name, confidence = self.face_processor.process_face_recognition_optimized(frame, x, y, w, h)
             else:
                 # Use tracking information for non-recognition frames
@@ -372,17 +376,18 @@ class OptimizedFaceRecognitionAttendanceUI:
         
         self.camera_handler.current_frame_faces = current_faces
     
-    def start_capture(self):
+    def start_capture(self, menu_window=None):
         """Optimized face capture process"""
         if self.is_capturing:
             return
         
         self.camera_handler.video_paused = True
         
-        # Get user name input
-        name = self.training_manager.get_user_name_input(self.root, self.screen_width, self.screen_height)
+        # Get user name input - use menu window if provided, otherwise use root
+        parent_window = menu_window if menu_window else self.root
+        restore_callback = self.menu_manager.show_menu if menu_window else None
+        name = self.training_manager.get_user_name_input(parent_window, self.screen_width, self.screen_height, restore_callback)
         if not name:
-            self.camera_handler.video_paused = False
             return
             
         self.training_manager.show_capture_instructions(self.root)
@@ -500,6 +505,64 @@ class OptimizedFaceRecognitionAttendanceUI:
         
         CustomDialog.show_error(self.root, "Training Error", error_message)
     
+    def check_out_last_face(self):
+        """Handle the 'Check Out' button click - checks out the last recognized employee."""
+        # Check if we have a last recognized employee
+        if not self.attendance_manager.last_recognized_employee:
+            CustomDialog.show_info(self.root, "No Employee Detected", 
+                                 "No employee has been recognized recently.\n\n"
+                                 "Please ensure an employee is visible to the camera before checking out.")
+            return
+        
+        last_employee = self.attendance_manager.last_recognized_employee
+        
+        # Confirm checkout
+        result = CustomDialog.ask_yes_no(self.root, "Confirm Check Out", 
+                                       f"Check out {last_employee}?\n\n"
+                                       f"This will record their departure time.")
+        
+        if not result:
+            return
+        
+        # Attempt to check out the last recognized employee
+        if self.attendance_manager.handle_checkout_optimized(last_employee):
+            # Save check-out photo if we have a current frame
+            if hasattr(self.camera_handler, 'last_display_frame') and self.camera_handler.last_display_frame is not None:
+                self.training_manager.save_checkout_photo(last_employee, self.camera_handler.last_display_frame)
+            
+            # Update the display to show checkout
+            self.update_checkout_display(last_employee)
+            
+            CustomDialog.show_info(self.root, "Check Out Successful", 
+                                 f"Successfully checked out {last_employee}.\n\n"
+                                 f"Time: {datetime.now().strftime('%H:%M:%S')}")
+            print(f"✅ Successfully checked out {last_employee}")
+        else:
+            CustomDialog.show_info(self.root, "Check Out Failed", 
+                                 f"Could not check out {last_employee}.\n\n"
+                                 f"Possible reasons:\n"
+                                 f"• Employee was not checked in today\n"
+                                 f"• Employee already checked out\n"
+                                 f"• Database error")
+            print(f"❌ Failed to check out {last_employee}")
+    
+    def update_checkout_display(self, name):
+        """Update the check-in history to show checkout"""
+        checkout_time = datetime.now().strftime("%H:%M:%S")
+        
+        # Enable text editing
+        self.checkin_textbox.config(state=tk.NORMAL)
+        
+        # Add checkout entry with timestamp and name
+        entry = f"🔓 {name} - {checkout_time} (CHECKOUT)\n"
+        self.checkin_textbox.insert(tk.END, entry)
+        
+        # Auto-scroll to the bottom to show the latest entry
+        self.checkin_textbox.see(tk.END)
+        
+        # Disable text editing to prevent user modification
+        self.checkin_textbox.config(state=tk.DISABLED)
+
     def cleanup_and_exit(self):
         """Clean up resources and exit"""
         self.camera_handler.cleanup_camera()

@@ -14,12 +14,45 @@
                 <form method="POST">
                     <div class="mb-3">
                         <label for="name" class="form-label">Employee Name</label>
-                        <input type="text" class="form-control" id="name" name="name" required>
+                        <select class="form-select" id="name" name="name" required>
+                            <option value="">Select an employee to check out...</option>
+                            {% for employee in checked_in_employees %}
+                            <option value="{{ employee.name }}">
+                                {{ employee.name }} - Checked in at {{ employee.check_in_time.split(' ')[1] }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if not checked_in_employees %}
+                        <div class="form-text text-muted">No employees are currently checked in.</div>
+                        {% endif %}
                     </div>
-                    <button type="submit" class="btn btn-success">Check Out</button>
+                    <button type="submit" class="btn btn-success" {% if not checked_in_employees %}disabled{% endif %}>Check Out</button>
                 </form>
             </div>
         </div>
     </div>
+    
+    {% if checked_in_employees %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Currently Checked In</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for employee in checked_in_employees %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ employee.name }}</strong><br>
+                            <small class="text-muted">Checked in at {{ employee.check_in_time }}</small>
+                        </div>
+                        <span class="badge bg-success rounded-pill">Present</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

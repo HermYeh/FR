@@ -56,7 +56,10 @@ def check_in():
             flash('Name is required.', 'error')
         return redirect(url_for('check_in'))
     
-    return render_template('check_in.html')
+    # Get all employees for the dropdown
+    db = get_db()
+    employees = db.get_employees()
+    return render_template('check_in.html', employees=employees)
 
 @app.route('/check_out', methods=['GET', 'POST'])
 def check_out():
@@ -73,13 +76,17 @@ def check_out():
             flash('Name is required.', 'error')
         return redirect(url_for('check_out'))
     
-    return render_template('check_out.html')
+    # Get currently checked-in employees for the dropdown
+    db = get_db()
+    checked_in_employees = db.get_checked_in_employees()
+    return render_template('check_out.html', checked_in_employees=checked_in_employees)
 
 @app.route('/employees')
 def employees():
     """Employees list page"""
     db = get_db()
     employees = db.get_employees()
+    print(employees)
     return render_template('employees.html', employees=employees)
 
 @app.route('/add_employee', methods=['GET', 'POST'])
