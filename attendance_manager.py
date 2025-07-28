@@ -162,6 +162,18 @@ class AttendanceManager:
             print(f"Error adding employee to database: {e}")
             return False
     
+    def delete_employee_from_database(self, name):
+        """Delete employee from attendance database"""
+        if not self.attendance_db:
+            return False
+        
+        try:
+            success = self.attendance_db.delete_employee(name)
+            return success
+        except Exception as e:
+            print(f"Error deleting employee from database: {e}")
+            return False
+    
     def load_existing_checkins(self, textbox):
         """Load today's existing check-ins from the database and display them in the textbox"""
         if not self.attendance_db:

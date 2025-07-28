@@ -3,7 +3,7 @@
     "frame_width": 800,
     "frame_height": 480,
     "target_fps": 15,
-    "buffer_size": 1,
+    "buffer_size": 10,
     "auto_exposure": 0.25,
     "brightness": 0,
     "contrast": 0,
@@ -13,7 +13,7 @@
     "face_cache_size": 10,
     "frame_rotation": "90_ccw",
     "max_track_distance": 50,
-    "track_timeout": 30,
+    "track_timeout": 15,
     "tracking_enabled": true,
     "min_face_size": 30,
     "detection_scale_factor": 0.5,
@@ -27,7 +27,7 @@
     "embedding_cache_size": 100,
     "confidence_boost_factor": 0.1,
     "confidence_decay_factor": 0.05,
-    "memory_cleanup_interval": 10,
+    "memory_cleanup_interval": 15,
     "enable_gpu": true,
-    "image_quality": "medium"
+    "image_quality": "low"
 }

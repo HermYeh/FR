@@ -618,8 +618,7 @@ if __name__ == '__main__':
     os.makedirs('templates', exist_ok=True)
     
     # Create basic templates
-    create_templates()
-    
+ 
     print("Starting Face Recognition Attendance Web Server...")
     print("Web interface will be available at:")
     print("- Local: http://localhost:5000")

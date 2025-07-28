@@ -445,6 +445,41 @@ class AttendanceDatabase:
             print(f"Error getting checked-in employees: {e}")
             return []
     
+    def delete_employee(self, employee_name: str) -> bool:
+        """Delete an employee and all their attendance records"""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # First check if employee exists
+            cursor.execute('''
+                SELECT id FROM employees WHERE name = ?
+            ''', (employee_name,))
+            
+            if not cursor.fetchone():
+                conn.close()
+                print(f"Employee {employee_name} not found")
+                return False
+            
+            # Delete all attendance records for this employee
+            cursor.execute('''
+                DELETE FROM attendance WHERE name = ?
+            ''', (employee_name,))
+            
+            # Delete the employee record
+            cursor.execute('''
+                DELETE FROM employees WHERE name = ?
+            ''', (employee_name,))
+            
+            conn.commit()
+            conn.close()
+            print(f"Employee {employee_name} and all their records deleted successfully")
+            return True
+            
+        except Exception as e:
+            print(f"Error deleting employee {employee_name}: {e}")
+            return False
+    
     def close(self):
         """Close database connection - now this is a no-op since we don't maintain persistent connections"""
         print("Database connections are now managed per-operation")

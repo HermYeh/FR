@@ -69,7 +69,7 @@ class MenuManager:
         section_frame.pack(fill=tk.X, pady=(0, 15))
         
         # Button configurations (larger font)
-        button_config = {'font': ('Arial', 14, 'bold'), 'width': 20, 'height': 2,
+        button_config = {'font': ('Arial', 14, 'bold'), 'width': 19, 'height': 2,
                         'relief': tk.RAISED, 'bd': 2, 'cursor': 'hand2'}
         
         # Buttons frame
@@ -104,7 +104,7 @@ class MenuManager:
         section_frame.pack(fill=tk.X, pady=(0, 15))
         
         # Button configurations (larger font)
-        button_config = {'font': ('Arial', 14, 'bold'), 'width': 20, 'height': 2,
+        button_config = {'font': ('Arial', 14, 'bold'), 'width': 19, 'height': 2,
                         'relief': tk.RAISED, 'bd': 2, 'cursor': 'hand2'}
         
         # Buttons frame
@@ -112,7 +112,7 @@ class MenuManager:
         buttons_frame.pack(fill=tk.X, padx=15, pady=15)
         
         # Edit Today's Check-ins button with click protection
-        edit_btn = tk.Button(buttons_frame, text="Edit Today's Check-ins", 
+        edit_btn = tk.Button(buttons_frame, text="Edit Check-ins", 
                             command=self.show_edit,
                             bg='#e74c3c', fg='white', **button_config)
         edit_btn.pack(side=tk.LEFT, padx=(0, 10))
@@ -132,7 +132,7 @@ class MenuManager:
         section_frame.pack(fill=tk.X, pady=(0, 15))
         
         # Button configurations (larger font)
-        button_config = {'font': ('Arial', 14, 'bold'), 'width': 20, 'height': 2,
+        button_config = {'font': ('Arial', 14, 'bold'), 'width': 19, 'height': 2,
                         'relief': tk.RAISED, 'bd': 2, 'cursor': 'hand2'}
         
         # Buttons frame
@@ -171,7 +171,7 @@ class MenuManager:
         section_frame.pack(fill=tk.X, pady=(0, 15))
         
         # Button configurations (larger font)
-        button_config = {'font': ('Arial', 14, 'bold'), 'width': 20, 'height': 2,
+        button_config = {'font': ('Arial', 14, 'bold'), 'width': 19, 'height': 2,
                         'relief': tk.RAISED, 'bd': 2, 'cursor': 'hand2'}
         
         # Buttons frame
@@ -296,32 +296,49 @@ class MenuManager:
         button_frame = tk.Frame(parent, bg='#2c3e50')
         button_frame.pack(fill=tk.X, pady=(10, 0))
         
-        # Today's Check-ins button (larger font) with click protection
-        today_btn = tk.Button(button_frame, text="Today's Check-ins", 
-                             command=self.show_todays_checkins,
-                             font=('Arial', 14, 'bold'),
-                             bg='#3498db', fg='white',
-                             width=15, height=2,
-                             relief=tk.RAISED, bd=2)
-        today_btn.pack(side=tk.LEFT, padx=(0, 10))
+        # Left side buttons (actions)
+        left_buttons = tk.Frame(button_frame, bg='#2c3e50')
+        left_buttons.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
-        # Refresh button (larger font) with click protection
-        refresh_btn = tk.Button(button_frame, text="Refresh", 
+        # Register New Employee button
+        register_btn = tk.Button(left_buttons, text="Register New Employee", 
+                                command=self.show_add_employee,
+                                font=('Arial', 12, 'bold'),
+                                bg='#27ae60', fg='white',
+                                width=18, height=2,
+                                relief=tk.RAISED, bd=2)
+        register_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Delete Employee button (warning color)
+        delete_btn = tk.Button(left_buttons, text="Delete Employee", 
+                              command=self.delete_selected_employee,
+                              font=('Arial', 12, 'bold'),
+                              bg='#e74c3c', fg='white',
+                              width=15, height=2,
+                              relief=tk.RAISED, bd=2)
+        delete_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Right side buttons (utility)
+        right_buttons = tk.Frame(button_frame, bg='#2c3e50')
+        right_buttons.pack(side=tk.RIGHT)
+        
+        # Refresh button
+        refresh_btn = tk.Button(right_buttons, text="Refresh", 
                                command=self.refresh_employee_data,
-                               font=('Arial', 14, 'bold'),
-                               bg='#27ae60', fg='white',
-                               width=15, height=2,
+                               font=('Arial', 12, 'bold'),
+                               bg='#3498db', fg='white',
+                               width=12, height=2,
                                relief=tk.RAISED, bd=2)
         refresh_btn.pack(side=tk.LEFT, padx=(0, 10))
         
-        # Close button (larger font) with click protection
-        close_btn = tk.Button(button_frame, text="Close", 
+        # Close button
+        close_btn = tk.Button(right_buttons, text="Close", 
                              command=self.close_employee_window,
-                             font=('Arial', 14, 'bold'),
+                             font=('Arial', 12, 'bold'),
                              bg='#95a5a6', fg='white',
-                             width=15, height=2,
+                             width=12, height=2,
                              relief=tk.RAISED, bd=2)
-        close_btn.pack(side=tk.RIGHT)
+        close_btn.pack(side=tk.LEFT)
         close_btn.focus_set()
     
     def close_employee_window(self):
@@ -382,11 +399,14 @@ class MenuManager:
         for widget in self.details_content.winfo_children():
             widget.destroy()
         
-        # Employee name
-        name_label = tk.Label(self.details_content, text=f"Name: {employee['name']}", 
-                             font=('Arial', 14, 'bold'), 
-                             fg='#ecf0f1', bg='#34495e')
-        name_label.pack(anchor=tk.W, pady=(0, 10))
+        # Selected employee header with visual emphasis
+        header_frame = tk.Frame(self.details_content, bg='#3498db', relief=tk.RAISED, bd=2)
+        header_frame.pack(fill=tk.X, pady=(0, 15))
+        # Employee name with emphasis
+        name_label = tk.Label(header_frame, text=f"{employee['name']}", 
+                             font=('Arial', 16, 'bold'), 
+                             fg='white', bg='#3498db')
+        name_label.pack(pady=(0, 5))
         
         # Basic info frame
         info_frame = tk.Frame(self.details_content, bg='#34495e')
@@ -521,6 +541,7 @@ class MenuManager:
                                            font=('Arial', 10), 
                                            fg='#95a5a6', bg='#2c3e50')
                 no_records_label.pack(anchor=tk.W, padx=10, pady=5)
+        
             
         except Exception as e:
             error_label = tk.Label(self.details_content, text=f"Error calculating statistics: {e}", 
@@ -551,6 +572,58 @@ class MenuManager:
         # Restore employee detail button
         #self.restore_button_on_window_close("employee_detail_btn")
     
+    def delete_selected_employee(self):
+        """Delete the currently selected employee with confirmation"""
+        try:
+            # Check if an employee is selected
+            if not hasattr(self, 'employee_listbox') or not self.employee_listbox.curselection():
+                CustomDialog.show_warning(self.menu_window, "No Selection", 
+                                        "Please select an employee to delete.")
+                return
+            
+            # Get selected employee
+            selection = self.employee_listbox.curselection()[0]
+            employee_data = self.employee_listbox.get(selection)
+            
+            # Extract employee name (format: "Name (ID) - Department")
+            employee_name = employee_data.split(' (')[0].strip()
+            
+            # Confirmation dialog
+            confirm_message = f"""Are you sure you want to delete employee '{employee_name}'?
+
+This action will:
+• Remove the employee from the database
+• Delete ALL their attendance records
+• Cannot be undone
+
+Do you want to continue?"""
+            
+            if CustomDialog.ask_yes_no(self.menu_window, "Confirm Deletion", confirm_message):
+                # Perform deletion
+                if self.attendance_db and self.attendance_db.delete_employee(employee_name):
+                    CustomDialog.show_info(self.menu_window, "Success", 
+                                         f"Employee '{employee_name}' has been deleted successfully.")
+                    
+                    # Refresh the employee list
+                    self.load_employee_data()
+                    
+                    # Show success message in details area
+                    for widget in self.details_content.winfo_children():
+                        widget.destroy()
+                    
+                    success_label = tk.Label(self.details_content, 
+                                           text=f"Employee '{employee_name}'\nsuccessfully deleted", 
+                                           font=('Arial', 16, 'bold'), 
+                                           fg='#27ae60', bg='#34495e')
+                    success_label.pack(expand=True)
+                    
+                else:
+                    CustomDialog.show_error(self.menu_window, "Error", 
+                                          f"Failed to delete employee '{employee_name}'. Please try again.")
+            
+        except Exception as e:
+            print(f"Error deleting employee: {e}")
+            CustomDialog.show_error(self.menu_window, "Error", f"An error occurred while deleting the employee: {e}")
   
     def show_todays_checkins(self):
         """Show detailed view of today's check-ins"""
