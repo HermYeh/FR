@@ -94,7 +94,7 @@ class TrainingManager:
         
         # Create virtual keyboard with dynamic show/hide
         virtual_keyboard = VirtualKeyboard(main_frame, name_var)
-        virtual_keyboard.setup_dynamic_keyboard(name_entry, confirm_callback=confirm)
+        virtual_keyboard.setup_dynamic_keyboard(name_entry,confirm,cancel)
         
         # Bind cancel to main frame
         main_frame.bind('<Escape>', lambda e: cancel())
@@ -199,7 +199,7 @@ class TrainingManager:
                 return
             
             # Resize to standard size
-            face_img = cv2.resize(face_img, (160, 160))
+            face_img = cv2.resize(face_img, (240, 320))
             
             # Generate filename using user name instead of user ID
             # Clean the user name for filename (remove special characters)

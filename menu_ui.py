@@ -19,7 +19,7 @@ class MenuManager:
         self._injected_start_capture = lambda menu_window=None: None
         self.active_keyboards = []  # Track active virtual keyboards
     
-    def setup_virtual_keyboard_for_entry(self, entry_widget, text_var, parent_container, confirm_callback=None):
+    def setup_virtual_keyboard_for_entry(self, entry_widget, text_var, parent_container, confirm_callback=None,cancel_callback=None):
         """Set up virtual keyboard for an entry widget"""
         try:
             # Create a container for the virtual keyboard if it doesn't exist
@@ -32,7 +32,7 @@ class MenuManager:
             
             # Create virtual keyboard
             virtual_keyboard = VirtualKeyboard(parent_container.keyboard_container, text_var)
-            virtual_keyboard.setup_dynamic_keyboard(entry_widget, confirm_callback)
+            virtual_keyboard.setup_dynamic_keyboard(entry_widget, confirm_callback, cancel_callback)
             
             # Track this keyboard
             self.active_keyboards.append(virtual_keyboard)
@@ -98,7 +98,8 @@ class MenuManager:
         self.menu_window = tk.Toplevel(root)
         self.menu_window.grab_set()  
         self.menu_window.transient(root)
-    
+       
+
         self.menu_window.title("TS Ma's Attendance System")
         self.menu_window.configure(bg='#2c3e50')
         
@@ -398,14 +399,14 @@ class MenuManager:
         right_buttons = tk.Frame(button_frame, bg='#2c3e50')
         right_buttons.pack(side=tk.RIGHT)
         
-        # Refresh button
-        refresh_btn = tk.Button(right_buttons, text="Refresh", 
-                               command=self.refresh_employee_data,
-                               font=('Arial', 12, 'bold'),
-                               bg='#3498db', fg='white',
-                               width=12, height=2,
-                               relief=tk.RAISED, bd=2)
-        refresh_btn.pack(side=tk.LEFT, padx=(0, 10))
+        # Edit Employee button
+        edit_btn = tk.Button(right_buttons, text="Edit Employee", 
+                           command=self.edit_selected_employee,
+                           font=('Arial', 12, 'bold'),
+                           bg='#f39c12', fg='white',
+                           width=12, height=2,
+                           relief=tk.RAISED, bd=2)
+        edit_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Close button
         close_btn = tk.Button(right_buttons, text="Close", 
@@ -700,6 +701,171 @@ Do you want to continue?"""
         except Exception as e:
             print(f"Error deleting employee: {e}")
             CustomDialog.show_error(self.menu_window, "Error", f"An error occurred while deleting the employee: {e}")
+    
+    def edit_selected_employee(self):
+        if not hasattr(self, 'employee_listbox') or not self.employee_listbox.curselection():  
+            return
+
+        selection = self.employee_listbox.curselection()[0]
+        selected_employee = self.employee_data[selection]                 
+        if selection >= len(self.employee_data):
+            CustomDialog.show_error(self.menu_window, "Error", "Invalid employee selection.")
+            return
+       
+        
+        for widget in self.menu_window.winfo_children():
+            widget.destroy()
+        try:
+            success = self.show_edit_employee_dialog(selected_employee)
+            
+            if success:
+                # Refresh the employee list to show updated information
+                self.load_employee_data()
+                # Show updated details for the same employee
+                if selection < len(self.employee_data):
+                    self.employee_listbox.selection_set(selection)
+                    updated_employee = self.employee_data[selection]
+                    self.show_employee_details(updated_employee)
+            
+        except Exception as e:
+            print(f"Error editing employee: {e}")
+            CustomDialog.show_error(self.menu_window, "Error", f"An error occurred while editing the employee: {e}")
+    
+    def show_edit_employee_dialog(self, employee):
+        # Main frame
+        main_frame = tk.Frame(self.menu_window, bg='#2c3e50')
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Title
+        title_label = tk.Label(main_frame, text=f"Edit Employee: {employee['name']}", 
+                              font=('Arial', 18, 'bold'), 
+                              fg='#ecf0f1', bg='#2c3e50')
+        title_label.pack(pady=(0, 20))
+        
+        # Form frame
+        form_frame = tk.Frame(main_frame, bg='#34495e', relief=tk.RAISED, bd=2)
+        form_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
+        
+        # Form content
+        content_frame = tk.Frame(form_frame, bg='#34495e')
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Form fields with virtual keyboard support
+        fields = {}
+        field_vars = {}
+        
+        # Name field (required) - pre-filled
+        name_label = tk.Label(content_frame, text="Name *", 
+                             font=('Arial', 12, 'bold'), 
+                             fg='#ecf0f1', bg='#34495e')
+        name_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        field_vars['name'] = tk.StringVar(value=employee['name'])
+        fields['name'] = tk.Entry(content_frame, textvariable=field_vars['name'], 
+                                 font=('Arial', 12), 
+                                 bg='#ffffff', fg='#2c3e50', width=40)
+        fields['name'].pack(fill=tk.X, pady=(0, 15))
+        fields['name'].focus_set()
+        
+        # Employee ID field - pre-filled
+        id_label = tk.Label(content_frame, text="Employee ID", 
+                           font=('Arial', 12, 'bold'), 
+                           fg='#ecf0f1', bg='#34495e')
+        id_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        field_vars['employee_id'] = tk.StringVar(value=employee.get('employee_id', ''))
+        fields['employee_id'] = tk.Entry(content_frame, textvariable=field_vars['employee_id'],
+                                        font=('Arial', 12), 
+                                        bg='#ffffff', fg='#2c3e50', width=40)
+        fields['employee_id'].pack(fill=tk.X, pady=(0, 15))
+        
+        # Department field - pre-filled
+        dept_label = tk.Label(content_frame, text="Department", 
+                             font=('Arial', 12, 'bold'), 
+                             fg='#ecf0f1', bg='#34495e')
+        dept_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        field_vars['department'] = tk.StringVar(value=employee.get('department', ''))
+        fields['department'] = tk.Entry(content_frame, textvariable=field_vars['department'],
+                                       font=('Arial', 12), 
+                                       bg='#ffffff', fg='#2c3e50', width=40)
+        fields['department'].pack(fill=tk.X, pady=(0, 15))
+        
+        # Position field - pre-filled
+        pos_label = tk.Label(content_frame, text="Position", 
+                            font=('Arial', 12, 'bold'), 
+                            fg='#ecf0f1', bg='#34495e')
+        pos_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        field_vars['position'] = tk.StringVar(value=employee.get('position', ''))
+        fields['position'] = tk.Entry(content_frame, textvariable=field_vars['position'],
+                                     font=('Arial', 12), 
+                                     bg='#ffffff', fg='#2c3e50', width=40)
+        fields['position'].pack(fill=tk.X, pady=(0, 15))
+        
+                # Button frame
+        button_frame = tk.Frame(main_frame, bg='#2c3e50')
+        button_frame.pack(fill=tk.X)
+        
+        # Result storage
+        result = {'success': False}
+        
+        def clean_window():
+            for widget in self.menu_window.winfo_children():
+                widget.destroy()
+            self.show_employee_detail_window()
+
+        def on_save():
+            """Handle save button click"""
+            name = field_vars['name'].get().strip()
+            employee_id = field_vars['employee_id'].get().strip() or None
+            department = field_vars['department'].get().strip() or None
+            position = field_vars['position'].get().strip() or None
+            
+            # Validate required fields
+            if not name:
+                CustomDialog.show_error(self.menu_window, "Validation Error", "Name is required!")
+                fields['name'].focus_set()
+                return
+            
+            try:
+                # Update employee in database
+                success = self.attendance_db.update_employee(
+                    old_name=employee['name'],
+                    new_name=name,
+                    employee_id=employee_id,
+                    department=department,
+                    position=position
+                )
+                
+                if success:
+                    result['success'] = True
+                    CustomDialog.show_info(self.menu_window, "Success", f"Employee '{name}' updated successfully!")
+                    self.cleanup_keyboards()
+                    clean_window()
+               
+                else:
+                    CustomDialog.show_error(self.menu_window, "Error", f"Failed to update employee '{name}'. Please try again.")
+                    
+            except Exception as e:
+                CustomDialog.show_error(self.menu_window, "Database Error", f"Failed to update employee: {e}")
+
+        def on_cancel():
+            """Handle cancel button click"""
+            self.cleanup_keyboards()
+            clean_window()
+        
+        # Set up virtual keyboards for all entry fields with proper callbacks
+        for field_name, entry_widget in fields.items():
+            self.setup_virtual_keyboard_for_entry(entry_widget, field_vars[field_name], main_frame, on_save, on_cancel)
+        
+        # handle window close
+
+        # Handle window close
+
+
+        
+        return result.get('success', False)
   
     def show_todays_checkins(self):
         """Show detailed view of today's check-ins"""
@@ -2365,7 +2531,7 @@ Do you want to continue?"""
             self.show_menu()
         
         # Save button
-    
+
         
         # Handle window close
         def on_window_close():
@@ -2392,11 +2558,9 @@ Do you want to continue?"""
         pass
     def start_capture(self):
         # Call the main UI's start_capture with menu window context
-        try:
-            self._injected_start_capture(self.menu_window)
-        except TypeError:
-            # Fallback if function doesn't accept arguments (default lambda)
-            self.show_add_employee()
+       
+        self._injected_start_capture(self.menu_window)
+        
     def show_recognition_settings(self):
         """Show recognition settings"""
         # This method will be implemented with dependency injection

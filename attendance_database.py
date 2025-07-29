@@ -190,7 +190,7 @@ class AttendanceDatabase:
             
             if cursor.fetchone():
                 conn.close()
-                print(f"{name} already checked in today")
+               
                 return False
             
             # Record check-in

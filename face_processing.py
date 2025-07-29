@@ -26,6 +26,7 @@ class FaceProcessor:
         self.facenet_model = None
         self.face_embeddings = {}
         self.embedding_cache = {}
+     
         
     def initialize_face_recognition_optimized(self):
         """Optimized FaceNet initialization"""
@@ -91,6 +92,7 @@ class FaceProcessor:
                             # Scale back to original size
                             x, y, x2, y2 = (box / scale_factor).astype(int)
                             w, h = x2 - x, y2 - y
+                       
                             
                             # Validate coordinates
                             if self.is_valid_face_region(x, y, w, h, frame.shape):
@@ -148,8 +150,15 @@ class FaceProcessor:
             if not self.facenet_model:
                 return None
             
-            # Resize and preprocess
-            face_resized = cv2.resize(face_image, (160, 160))
+            # Enhanced preprocessing
+            face_resized = cv2.resize(face_image, (240, 320), interpolation=cv2.INTER_LANCZOS4)
+            
+            # Apply histogram equalization for better quality
+            if len(face_resized.shape) == 3:
+                lab = cv2.cvtColor(face_resized, cv2.COLOR_BGR2LAB)
+                lab[:,:,0] = cv2.createCLAHE(clipLimit=2.0).apply(lab[:,:,0])
+                face_resized = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+            
             face_rgb = cv2.cvtColor(face_resized, cv2.COLOR_BGR2RGB)
             face_pil = Image.fromarray(face_rgb)
             

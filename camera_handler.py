@@ -18,7 +18,7 @@ class CameraHandler:
         self.current_frame_tk = None
         self.last_display_frame: Optional[np.ndarray] = None
         self.video_paused = False
-        
+        self.time_label=""
         # Face tracking for persistent recognition
         self.tracked_faces = {}
         self.face_track_id = 0
@@ -158,7 +158,14 @@ class CameraHandler:
             x_offset = (win_w - new_width) // 2
             y_offset = (win_h - new_height) // 2
             canvas.create_image(x_offset, y_offset, anchor='nw', image=frame_tk)
-            
+            canvas.create_text(
+            canvas.winfo_width() / 2, # X-coordinate (center of canvas)
+            80, # Y-coordinate (center of canvas)
+            text=self.time_label,
+            fill="white", # Text color
+            font=("Arial", 50, "bold"),
+            anchor="center" # Center the text
+            )
             # Keep reference
             self.current_frame_tk = frame_tk
             
@@ -306,6 +313,20 @@ class CameraHandler:
                 elif rotation == "180":
                     frame = cv2.rotate(frame, cv2.ROTATE_180)
                 # "none" - no rotation
+                
+                # Apply frame flipping
+                flip_horizontal = camera_config.get("flip_horizontal", True)
+                flip_vertical = camera_config.get("flip_vertical", False)
+                
+                if flip_horizontal and flip_vertical:
+                    # Flip both horizontally and vertically (equivalent to 180° rotation)
+                    frame = cv2.flip(frame, -1)
+                elif flip_horizontal:
+                    # Flip horizontally (mirror effect)
+                    frame = cv2.flip(frame, 1)
+                elif flip_vertical:
+                    # Flip vertically
+                    frame = cv2.flip(frame, 0)
                 
                 # Validate frame dimensions
                 if frame.shape[0] > 0 and frame.shape[1] > 0:

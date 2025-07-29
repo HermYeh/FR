@@ -1,6 +1,6 @@
 {
     "auto_checkout_enabled": true,
-    "auto_checkout_time": "01:30",
+    "auto_checkout_time": "12:30",
     "auto_checkout_days": [
         "monday",
         "tuesday",

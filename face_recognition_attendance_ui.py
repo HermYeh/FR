@@ -39,9 +39,13 @@ os.environ.update({
 class OptimizedFaceRecognitionAttendanceUI:
     def __init__(self, root):
         self.root = root
+      
         self.setup_window()
-        
-        # Initialize modular components
+       
+    
+            # Initialize modular components
+
+
         self.face_processor = FaceProcessor()
         self.camera_handler = CameraHandler()
         self.training_manager = TrainingManager()
@@ -54,7 +58,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         self.is_training = False
         self.progress_var = tk.DoubleVar()
         
-        # Initialize system
+        # Initialize system2
         self.initialize_system()
         
         # Start main processes
@@ -67,7 +71,6 @@ class OptimizedFaceRecognitionAttendanceUI:
         self.root.attributes('-fullscreen', True)
         self.root.configure(bg='#2c3e50')
         self.root.bind('<Escape>', lambda e: self.cleanup_and_exit())
-        
         def record_touch(event):
             """Function to be called when a touch/click occurs."""
             self.root.x, self.root.y = event.x, event.y
@@ -84,6 +87,7 @@ class OptimizedFaceRecognitionAttendanceUI:
 
         self.root.bind("<Button-1>", record_touch)
         self.root.bind('<Motion>', callback)
+        
         
         # Cache screen dimensions
         self.screen_width = self.root.winfo_screenwidth()
@@ -111,23 +115,19 @@ class OptimizedFaceRecognitionAttendanceUI:
         
         # Video canvas frame (takes most of the space)
         self.video_frame = tk.Frame(main_frame, bg='#2c3e50', relief=tk.RAISED, bd=2)
-        self.video_frame.pack(fill=tk.BOTH, expand=True, padx=0, pady=(3, 5))
+        self.video_frame.place(x=0, y=-160,relwidth=1, relheight=1,anchor=tk.NW)
         
         # Main canvas for video
         self.canvas = tk.Canvas(self.video_frame, bg='black', highlightthickness=1, highlightcolor='#7f8c8d')
-        self.canvas.pack(fill=tk.BOTH, expand=True, padx=3, pady=3)
-        
-        self.time_label = tk.Label(main_frame, text="", 
-                                  font=('Arial', 32, 'bold'), fg='white', bg='black', height=3)
-        self.time_label.place(relx=0.5, rely=0.07, anchor='center')
-
+        self.canvas.place(x=0, y=155,relwidth=1, relheight=1,anchor=tk.NW)
+       
         # Separator line
         separator = tk.Frame(main_frame, bg='#7f8c8d', height=2)
         separator.pack(fill=tk.X, side=tk.BOTTOM)
         
         # Bottom button panel
-        self.button_frame = tk.Frame(main_frame, bg='#34495e', height=80)
-        self.button_frame.pack(fill=tk.X, side=tk.BOTTOM, padx=5, pady=5)
+        self.button_frame = tk.Frame(main_frame, bg='#34495e', height=200)
+        self.button_frame.pack(fill=tk.BOTH, side=tk.BOTTOM, padx=0, pady=0)
         self.button_frame.pack_propagate(False)  # Maintain fixed height
         
         # Progress bar overlay (hidden by default, shown during training)
@@ -158,26 +158,26 @@ class OptimizedFaceRecognitionAttendanceUI:
     def create_ui_buttons(self):
         """Create UI buttons in the bottom panel"""
         # Button configurations
-        main_button_config = {'font': ('Arial', 12, 'bold'), 'height': 5, 'relief': tk.RAISED, 'bd': 3}
+        main_button_config = {'font': ('Arial', 22, 'bold'), 'height': 10, 'relief': tk.RAISED, 'bd': 3}
         
         # Left side - Main action button
         left_frame = tk.Frame(self.button_frame, bg='#34495e')
-        left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
+        left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=5)
         
         self.capture_button = tk.Button(left_frame, text="Check Out", command=self.check_out_last_face,
-                                      bg='#e74c3c', fg='white', width=18, **main_button_config)
-        self.capture_button.pack(fill=tk.BOTH, expand=True)
+                                      bg='#e74c3c', fg='white', width=10, **main_button_config)
+        self.capture_button.pack(padx=5, pady=5)
         
         # Right side - Control buttons
         menu_frame = tk.Frame(self.button_frame, bg='#34495e')
         menu_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=5)
         
         self.menu_button = tk.Button(menu_frame, text="☰ Menu", 
-                                    font=('Arial', 18, 'bold'),
+                                    font=('Arial', 22, 'bold'),
                                     bg='#34495e', fg='white',
                                     relief=tk.RAISED, bd=3,
                                     cursor='hand2',
-                                    width=12, height=2,
+                                    width=10, height=10,
                                     command=self.show_main_menu_window)
         self.menu_button.pack(padx=5, pady=5)
         
@@ -191,7 +191,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         
         # Title label for the textbox
         title_label = tk.Label(textbox_frame, text="Recent Check-ins", 
-                              font=('Arial', 10, 'bold'), fg='#ecf0f1', bg='#34495e')
+                              font=('Arial', 22, 'bold'), fg='#ecf0f1', bg='#34495e')
         title_label.pack(pady=(0, 2))
         
         # Create textbox with scrollbar
@@ -200,7 +200,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         
         # Text widget for check-in history
         self.checkin_textbox = tk.Text(text_frame, 
-                                      font=('Arial', 9), 
+                                      font=('Arial', 16), 
                                       bg='#2c3e50', 
                                       fg='#ecf0f1',
                                       wrap=tk.WORD,
@@ -227,6 +227,10 @@ class OptimizedFaceRecognitionAttendanceUI:
         self.camera_handler.video_paused = True
         print("Video processing paused for menu")
     
+
+     
+
+
         # Set callback functions for menu manager
         self.menu_manager.export_attendance_report = lambda: self.attendance_manager.export_attendance_report(self.root)
         self.menu_manager.show_camera_settings = lambda: self.file_manager.show_camera_settings(self.root)
@@ -251,10 +255,11 @@ class OptimizedFaceRecognitionAttendanceUI:
     def reset_system(self):
         """Reset system using file manager"""
         success = self.file_manager.reset_system(self.root, self.face_processor, self.attendance_manager, self.training_manager)
+        self.face_processor.load_face_embeddings()
         if success:
-            # Reload check-ins display
+            self.attendance_manager.attendance_db=None
             self.attendance_manager.load_existing_checkins(self.checkin_textbox)
-    
+            
     def start_camera_optimized(self):
         """Start camera with optimized settings"""
         if not self.camera_handler.start_camera_optimized():
@@ -286,12 +291,12 @@ class OptimizedFaceRecognitionAttendanceUI:
                 if hasattr(self.camera_handler, 'last_display_frame') and self.camera_handler.last_display_frame is not None:
                     paused_frame = self.camera_handler.last_display_frame.copy()
                     cv2.putText(paused_frame, "Please wait...", 
-                               (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+                               (150, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
                     self.camera_handler.display_frame_optimized(paused_frame, self.canvas, self.root)
                 else:
                     paused_frame = frame.copy()
                     cv2.putText(paused_frame, "Please wait...", 
-                               (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+                               (150, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
                     self.camera_handler.display_frame_optimized(paused_frame, self.canvas, self.root)
                     
                 self.root.after(self.camera_handler.frame_interval, self.update_video_optimized)
@@ -323,10 +328,16 @@ class OptimizedFaceRecognitionAttendanceUI:
         """Optimized face processing with tracking"""
         current_faces = []
         face_names = []
-        
+
         # Process each face
         for i, (x, y, w, h) in enumerate(faces):
-            current_faces.append((x, y, w, h))
+            if self.is_capturing and self.training_manager.capture_count < self.training_manager.max_captures:
+                self.progress_var.set(self.training_manager.capture_count)
+                if self.training_manager.capture_face_optimized(frame, x, y, w, h):
+                    self.stop_capture()
+
+                return
+                
             
             # Face recognition (process less frequently)
             name = "Unknown"
@@ -349,11 +360,8 @@ class OptimizedFaceRecognitionAttendanceUI:
                     self.attendance_manager.update_last_checkin_display(name, self.checkin_textbox)
             
             # Capture for training
-            if self.is_capturing and self.training_manager.capture_count < self.training_manager.max_captures:
-                if self.training_manager.capture_face_optimized(frame, x, y, w, h):
-                    self.progress_var.set(self.training_manager.capture_count)
-                    self.stop_capture()
-        
+           
+        current_faces.append((x, y, w, h))
         # Update face tracking first
         self.camera_handler.update_face_tracking(current_faces, face_names)
         
@@ -394,14 +402,13 @@ class OptimizedFaceRecognitionAttendanceUI:
         
         # Set up user information
         self.training_manager.setup_user_for_capture(name)
-        
+            
         # Start capturing
         self.training_manager.capture_count = 0
         self.is_capturing = True
         self.camera_handler.video_paused = False
         
         # Update UI
-        self.capture_button.config(text="Capturing...", bg='#e74c3c', state=tk.DISABLED)
         self.progress_frame.place(relx=0.5, rely=0.85, anchor='center')  # Show progress bar
         self.progress_var.set(0)
         print(f"Status: Capturing faces for {name}...")
@@ -409,13 +416,13 @@ class OptimizedFaceRecognitionAttendanceUI:
     
     def stop_capture(self):
         """Stop face capture and start training"""
-        self.is_capturing = False
-        self.capture_button.config(text="Start Training", bg='#27ae60', state=tk.NORMAL)
+        self.camera_handler.video_paused = True
         print("Status: Capture complete. Starting training...")
-        
-        # Start automatic training
         self.start_auto_training()
-    
+        self.camera_handler.video_paused = False
+        self.is_capturing = False
+
+
     def start_auto_training(self):
         """Start automatic training after capture"""
         if self.is_training:
@@ -423,14 +430,14 @@ class OptimizedFaceRecognitionAttendanceUI:
         
         self.is_training = True
         print("Status: Training model...")
-        
+        self.training_manager.auto_train_thread(self.face_processor, self.training_complete, self.training_failed)
         # Start training thread
-        training_thread = threading.Thread(
-            target=self.training_manager.auto_train_thread, 
-            args=(self.face_processor, self.training_complete, self.training_failed),
-            daemon=True
-        )
-        training_thread.start()
+     # training_thread = threading.Thread(
+     #      target=self.training_manager.auto_train_thread, 
+     #      args=(self.face_processor, self.training_complete, self.training_failed),
+     #      daemon=True
+     #  ) 
+     #  training_thread.start()
     
     def training_complete(self, num_embeddings):
         """Training completed successfully"""
@@ -439,9 +446,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         print(f"Status: Training complete. {num_embeddings} embeddings")
         self.training_manager.update_names_list({})
         
-        # Resume video processing
-        self.camera_handler.video_paused = False
-        print("Video feed resumed")
+ 
         
         # Add new user to attendance database
         if hasattr(self.training_manager, 'is_new_user') and self.training_manager.is_new_user and self.attendance_manager.attendance_db:
@@ -572,7 +577,7 @@ class OptimizedFaceRecognitionAttendanceUI:
     def update_time_display(self):
         """Update the current time display"""
         current_time = datetime.now().strftime("%Y-%m-%d  %H:%M:%S")
-        self.time_label.config(text=current_time)
+        self.camera_handler.time_label=current_time
         # Update every second
         self.root.after(1000, self.update_time_display)
 

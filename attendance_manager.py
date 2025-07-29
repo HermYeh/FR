@@ -38,10 +38,8 @@ class AttendanceManager:
         try:
             # The database check_in method already handles checking if person checked in today
             if self.attendance_db.check_in(name):
-                print(f"{name} checked in at {datetime.now().strftime('%H:%M:%S')}")
                 return True
             else:
-                print(f"{name} already checked in today at {datetime.now().strftime('%H:%M:%S')}")
                 return False
         except Exception as e:
             print(f"Error checking in {name}: {e}")
@@ -146,7 +144,7 @@ class AttendanceManager:
             success = self.attendance_db.add_employee(
                 name=name,
                 employee_id=None,
-                department="Face Recognition",
+                department="Kitchen",
                 position="Employee"
             )
             return success

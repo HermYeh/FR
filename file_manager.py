@@ -321,7 +321,7 @@ class FileManager:
     def create_face_detection_settings(self, parent):
         """Create face detection settings section"""
         self.create_settings_section(parent, "Face Detection", [
-            ("min_face_size", "Min Face Size", "int", (10, 200)),
+            ("min_face_size", "Min Face Size", "int", (10, 320)),
             ("detection_scale_factor", "Detection Scale Factor", "float", (0.1, 1.0)),
             ("mtcnn_threshold_1", "MTCNN Threshold 1", "float", (0.1, 1.0)),
             ("mtcnn_threshold_2", "MTCNN Threshold 2", "float", (0.1, 1.0)),

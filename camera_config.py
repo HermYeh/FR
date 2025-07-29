@@ -17,7 +17,7 @@ class CameraConfig:
             "camera_index": 0,
             "frame_width": 640,
             "frame_height": 480,
-            "target_fps": 10,
+            "target_fps": 20,
             "buffer_size": 1,
             "auto_exposure": 0.25,
             "brightness": 0,  # OpenCV default
@@ -29,7 +29,7 @@ class CameraConfig:
             "face_detection_interval": 5,
             "face_cache_size": 10,
             "frame_rotation": "90_ccw",  # 90_ccw, 90_cw, 180, none
-            "flip_horizontal": False,    # Horizontal mirror flip
+            "flip_horizontal": True,    # Horizontal mirror flip
             "flip_vertical": False,      # Vertical flip
             
             # Face Tracking Settings
@@ -162,7 +162,7 @@ class CameraConfig:
             "buffer_size": lambda x: 1 <= x <= 10,
             "auto_exposure": lambda x: 0.0 <= x <= 1.0,
             "face_detection_interval": lambda x: 1 <= x <= 30,
-            "min_face_size": lambda x: 10 <= x <= 200,
+            "min_face_size": lambda x: 10 <= x <= 320,
             "recognition_threshold": lambda x: 0.1 <= x <= 1.0,
             "detection_confidence_threshold": lambda x: 0.1 <= x <= 1.0,
         }
