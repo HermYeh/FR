@@ -30,26 +30,18 @@ class AttendanceManager:
     
     def handle_attendance_optimized(self, name):
         """Optimized attendance handling with database-based checking"""
+        current_time = time.time()
+        self.last_recognition_time[name] = current_time
+        self.last_recognized_employee = name
         if not self.attendance_db:
             return False
-        
-        current_time = time.time()
-        if name in self.last_recognition_time:
-            if current_time - self.last_recognition_time[name] < self.recognition_cooldown:
-                return False
-        
-        self.last_recognition_time[name] = current_time
-        
-        # Update last recognized employee for potential checkout
-        self.last_recognized_employee = name
-        
         try:
             # The database check_in method already handles checking if person checked in today
             if self.attendance_db.check_in(name):
-                print(f"✅ {name} checked in at {datetime.now().strftime('%H:%M:%S')}")
+                print(f"{name} checked in at {datetime.now().strftime('%H:%M:%S')}")
                 return True
             else:
-                print(f"ℹ️  {name} already checked in today at {datetime.now().strftime('%H:%M:%S')}")
+                print(f"{name} already checked in today at {datetime.now().strftime('%H:%M:%S')}")
                 return False
         except Exception as e:
             print(f"Error checking in {name}: {e}")
@@ -62,10 +54,10 @@ class AttendanceManager:
         
         try:
             if self.attendance_db.check_out(name):
-                print(f"✅ {name} checked out at {datetime.now().strftime('%H:%M:%S')}")
+                print(f"{name} checked out at {datetime.now().strftime('%H:%M:%S')}")
                 return True
             else:
-                print(f"ℹ️  {name} check-out failed - no check-in record found or already checked out")
+                print(f"{name} check-out failed - no check-in record found or already checked out")
                 return False
         except Exception as e:
             print(f"Error checking out {name}: {e}")

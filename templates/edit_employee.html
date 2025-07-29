@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Edit Employee - Attendance Database{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Edit Employee</h1>
+    <a href="/employees" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Employees
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-user-edit"></i> Edit Employee Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Name *</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="name" 
+                                       name="name" 
+                                       value="{{ employee.name }}"
+                                       required>
+                                <div class="form-text">Employee's full name</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="employee_id" class="form-label">Employee ID</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="employee_id" 
+                                       name="employee_id"
+                                       value="{{ employee.employee_id or '' }}">
+                                <div class="form-text">Unique employee identifier</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="department" class="form-label">Department</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="department" 
+                                       name="department"
+                                       value="{{ employee.department or '' }}">
+                                <div class="form-text">Employee's department</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="position" class="form-label">Position</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="position" 
+                                       name="position"
+                                       value="{{ employee.position or '' }}">
+                                <div class="form-text">Employee's job position</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Employee
+                            </button>
+                            <a href="/employees" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                        <button type="button" 
+                                class="btn btn-danger" 
+                                onclick="confirmDelete('{{ employee.name }}')">
+                            <i class="fas fa-trash"></i> Delete Employee
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> Employee Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Current Name:</strong><br>
+                    <span class="text-primary">{{ employee.name }}</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Employee ID:</strong><br>
+                    <span class="text-muted">{{ employee.employee_id or 'Not set' }}</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Department:</strong><br>
+                    <span class="text-muted">{{ employee.department or 'Not set' }}</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Position:</strong><br>
+                    <span class="text-muted">{{ employee.position or 'Not set' }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle text-warning"></i> Important
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning mb-0">
+                    <small>
+                        <strong>Note:</strong> Changing the employee name will update all existing attendance records. 
+                        Deleting an employee will permanently remove all their attendance data.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(employeeName) {
+    if (confirm(`Are you sure you want to delete employee "${employeeName}"?\n\nThis action cannot be undone and will remove all attendance records for this employee.`)) {
+        // Create a form to submit the delete request
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/delete_employee';
+        
+        const nameInput = document.createElement('input');
+        nameInput.type = 'hidden';
+        nameInput.name = 'name';
+        nameInput.value = employeeName;
+        
+        form.appendChild(nameInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Form validation
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const nameInput = document.getElementById('name');
+    
+    form.addEventListener('submit', function(e) {
+        if (!nameInput.value.trim()) {
+            e.preventDefault();
+            alert('Employee name is required!');
+            nameInput.focus();
+        }
+    });
+    
+    // Real-time validation
+    nameInput.addEventListener('input', function() {
+        if (this.value.trim()) {
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+        } else {
+            this.classList.remove('is-valid');
+            this.classList.add('is-invalid');
+        }
+    });
+});
+</script>
+{% endblock %} 

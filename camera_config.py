@@ -29,6 +29,8 @@ class CameraConfig:
             "face_detection_interval": 5,
             "face_cache_size": 10,
             "frame_rotation": "90_ccw",  # 90_ccw, 90_cw, 180, none
+            "flip_horizontal": False,    # Horizontal mirror flip
+            "flip_vertical": False,      # Vertical flip
             
             # Face Tracking Settings
             "max_track_distance": 50,
@@ -191,6 +193,8 @@ class CameraConfig:
             "face_detection_interval": "Face detection frequency (every N frames)",
             "face_cache_size": "Number of cached face detections",
             "frame_rotation": "Frame rotation (90_ccw, 90_cw, 180, none)",
+            "flip_horizontal": "Mirror flip video horizontally (true/false)",
+            "flip_vertical": "Flip video vertically (true/false)",
             
             # Face Tracking
             "max_track_distance": "Maximum distance for face tracking",

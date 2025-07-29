@@ -313,6 +313,8 @@ class FileManager:
             ("face_detection_interval", "Face Detection Interval", "int", (1, 30)),
             ("face_cache_size", "Face Cache Size", "int", (1, 50)),
             ("frame_rotation", "Frame Rotation", "choice", ["90_ccw", "90_cw", "180", "none"]),
+            ("flip_horizontal", "Flip Horizontal (Mirror)", "bool", None),
+            ("flip_vertical", "Flip Vertical", "bool", None),
             ("memory_cleanup_interval", "Memory Cleanup Interval", "int", (5, 100)),
         ])
     

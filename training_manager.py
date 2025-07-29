@@ -6,6 +6,7 @@ from datetime import datetime
 import menu_ui
 from ui_dialogs import CustomDialog
 from menu_ui import MenuManager
+from virtual_keyboard import VirtualKeyboard
 
 import tkinter as tk
 
@@ -56,37 +57,6 @@ class TrainingManager:
         # Result storage
         result = {'name': ''}
         
-        # Optimized keyboard functions
-        def update_cursor():
-            """Ensure cursor stays at end"""
-            name_entry.focus()
-            name_entry.icursor(tk.END)
-        
-        def press_key(key):
-            """Optimized key press with auto-capitalization"""
-            current_text = name_var.get()
-            if key == ' ':
-                name_var.set(current_text + ' ')
-            else:
-                # Smart capitalization
-                if len(current_text) == 0 or current_text[-1] == ' ':
-                    name_var.set(current_text + key.upper())
-                else:
-                    name_var.set(current_text + key.lower())
-            update_cursor()
-        
-        def backspace():
-            """Optimized backspace"""
-            current_text = name_var.get()
-            if current_text:
-                name_var.set(current_text[:-1])
-            update_cursor()
-        
-        def clear_text():
-            """Optimized clear"""
-            name_var.set("")
-            update_cursor()
-        
         def confirm():
             """Validate and confirm input"""
             name = name_var.get().strip()
@@ -99,43 +69,13 @@ class TrainingManager:
                 original_bg = name_entry.cget('bg')
                 name_entry.config(bg='#ffcccb')
                 main_frame.after(200, lambda: name_entry.config(bg=original_bg))
-                update_cursor()
+                virtual_keyboard.update_cursor()
         
         def cancel():
             """Cancel input"""
             main_frame.destroy()
             if restore_callback:
                 restore_callback()
-        # Enhanced button creation with better styling
-        def create_key_button(parent, text, command, style='normal',width=4):
-            """Create optimized keyboard button"""
-            colors = {
-                'normal': {'bg': '#34495e', 'fg': 'white', 'active_bg': '#4a6741'},
-                'special': {'bg': '#3498db', 'fg': 'white', 'active_bg': '#2980b9'},
-                'action': {'bg': '#27ae60', 'fg': 'white', 'active_bg': '#229954'},
-                'danger': {'bg': '#e74c3c', 'fg': 'white', 'active_bg': '#c0392b'}
-            }
-            
-            color = colors.get(style, colors['normal'])
-            
-            btn = tk.Button(parent, text=text, width=width, height=3,
-                           font=('Arial', 12, 'bold'),
-                           bg=color['bg'], fg=color['fg'],
-                           activebackground=color['active_bg'],
-                           relief=tk.RAISED, bd=2,
-                           command=command, cursor='hand2')
-            
-            # Enhanced hover effects
-            def on_enter(e):
-                btn.config(bg=color['active_bg'])
-            
-            def on_leave(e):
-                btn.config(bg=color['bg'])
-            
-            btn.bind('<Enter>', on_enter)
-            btn.bind('<Leave>', on_leave)
-            
-            return btn
         
         # Control buttons section
         control_frame = tk.Frame(main_frame, bg='#2c3e50')
@@ -152,82 +92,11 @@ class TrainingManager:
         cancel_btn.pack(side=tk.RIGHT)
         cancel_btn.focus_set()
         
-        # Separator
-        separator = tk.Frame(main_frame, height=2, bg='#7f8c8d')
-        separator.pack(fill=tk.X, pady=10)
+        # Create virtual keyboard with dynamic show/hide
+        virtual_keyboard = VirtualKeyboard(main_frame, name_var)
+        virtual_keyboard.setup_dynamic_keyboard(name_entry, confirm_callback=confirm)
         
-        # Optimized keyboard layout
-        keyboard_frame = tk.Frame(main_frame, bg='#2c3e50')
-        keyboard_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Define keyboard layout with better organization
-        keyboard_layout = [
-            {'keys': ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'], 'style': 'normal'},
-            {'keys': ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'], 'style': 'normal'},
-            {'keys': ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'], 'style': 'normal'},
-            {'keys': ['Z', 'X', 'C', 'V', 'B', 'N', 'M'], 'style': 'normal'}
-        ]
-        
-        # Create number and letter rows
-        for row_data in keyboard_layout:
-            row_frame = tk.Frame(keyboard_frame, bg='#2c3e50')
-            row_frame.pack(pady=2)
-            
-            for key in row_data['keys']:
-                btn = create_key_button(row_frame, key, 
-                                       lambda k=key.lower(): press_key(k),
-                                       row_data['style'],4)
-                btn.pack(side=tk.LEFT)
-        
-        # Special keys row
-        special_frame = tk.Frame(keyboard_frame, bg='#2c3e50')
-        special_frame.pack(pady=5)
-        
-        # Space bar (wider)
-        space_btn = tk.Button(special_frame, text="SPACE", width=20, height=3,
-                             font=('Arial', 10, 'bold'), bg='#34495e', fg='white',
-                             activebackground='#4a6741', relief=tk.RAISED, bd=2,
-                             command=lambda: press_key(' '), cursor='hand2')
-        space_btn.pack(side=tk.LEFT, padx=2)
-        
-        # Backspace
-        back_btn = create_key_button(special_frame, "⌫", backspace, 'danger',8)
-        back_btn.pack(side=tk.LEFT, padx=2)
-        
-        # Clear
-        clear_btn = create_key_button(special_frame, "Clear", clear_text, 'special',8)
-        clear_btn.pack(side=tk.LEFT, padx=2)
-        
-        # Enter
-        enter_btn = create_key_button(special_frame, "Enter", confirm, 'action',10)
-        enter_btn.pack(side=tk.LEFT, padx=2)
-        
-        # Enhanced event bindings
-        def on_entry_click(event):
-            update_cursor()
-            return "break"
-        
-        def on_key_press(event):
-            """Handle physical keyboard input"""
-            if event.keysym == 'Return':
-                confirm()
-            elif event.keysym == 'Escape':
-                cancel()
-            elif event.keysym == 'BackSpace':
-                backspace()
-                return "break"
-            elif event.char.isprintable() and event.char != ' ':
-                press_key(event.char)
-                return "break"
-            elif event.keysym == 'space':
-                press_key(' ')
-                return "break"
-        
-        # Bind events
-        name_entry.bind('<Button-1>', on_entry_click)
-        name_entry.bind('<FocusIn>', lambda e: update_cursor())
-        main_frame.bind('<Key>', on_key_press)
-        main_frame.bind('<Return>', lambda e: confirm())
+        # Bind cancel to main frame
         main_frame.bind('<Escape>', lambda e: cancel())
         
         # Focus management

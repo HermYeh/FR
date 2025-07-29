@@ -40,7 +40,7 @@ class AttendanceDatabase:
                     check_in_time TEXT,
                     check_out_time TEXT,
                     total_hours REAL,
-                    status TEXT DEFAULT 'present',
+                    status TEXT DEFAULT 'Absent',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
@@ -90,6 +90,59 @@ class AttendanceDatabase:
             return False
         except Exception as e:
             print(f"Error adding employee: {e}")
+            return False
+    
+    def update_employee(self, old_name: str, new_name: str, 
+                       employee_id: Optional[str] = None, 
+                       department: Optional[str] = None, 
+                       position: Optional[str] = None) -> bool:
+        """Update an existing employee's information"""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # First check if the old employee exists
+            cursor.execute('SELECT id FROM employees WHERE name = ?', (old_name,))
+            employee = cursor.fetchone()
+            if not employee:
+                conn.close()
+                print(f"Employee {old_name} not found")
+                return False
+            
+            # If name is changing, check if new name already exists
+            if old_name != new_name:
+                cursor.execute('SELECT id FROM employees WHERE name = ?', (new_name,))
+                if cursor.fetchone():
+                    conn.close()
+                    print(f"Employee {new_name} already exists")
+                    return False
+            
+            # Update employee information
+            cursor.execute('''
+                UPDATE employees 
+                SET name = ?, employee_id = ?, department = ?, position = ?
+                WHERE name = ?
+            ''', (new_name, employee_id, department, position, old_name))
+            
+            # If name changed, update all attendance records
+            if old_name != new_name:
+                cursor.execute('''
+                    UPDATE attendance 
+                    SET name = ?
+                    WHERE name = ?
+                ''', (new_name, old_name))
+                print(f"Updated attendance records from '{old_name}' to '{new_name}'")
+            
+            conn.commit()
+            conn.close()
+            print(f"Employee {old_name} updated successfully")
+            return True
+            
+        except sqlite3.IntegrityError as e:
+            print(f"Error updating employee (integrity constraint): {e}")
+            return False
+        except Exception as e:
+            print(f"Error updating employee: {e}")
             return False
     
     def get_employees(self) -> List[Dict]:
@@ -142,9 +195,9 @@ class AttendanceDatabase:
             
             # Record check-in
             cursor.execute('''
-                INSERT INTO attendance (name, date, check_in_time)
-                VALUES (?, ?, ?)
-            ''', (name, current_date, check_in_time))
+                INSERT INTO attendance (name, date, check_in_time, status)
+                VALUES (?, ?, ?, ?)
+            ''', (name, current_date, check_in_time, "Present"))
             
             conn.commit()
             conn.close()
@@ -190,7 +243,7 @@ class AttendanceDatabase:
                 UPDATE attendance 
                 SET check_out_time = ?, total_hours = ?
                 WHERE id = ?
-            ''', (check_out_time, total_hours, attendance_id))
+            ''', (check_out_time, total_hours,  attendance_id))
             
             conn.commit()
             conn.close()

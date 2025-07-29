@@ -26,20 +26,110 @@ def get_db():
 @app.route('/')
 def index():
     """Home page"""
-    return render_template('index.html')
+    db = get_db()
+    summary = db.get_daily_summary()
+
+    # Get today's employee check-in information
+    today = datetime.now().strftime('%Y-%m-%d')
+    today_records = db.get_attendance_report(today, today)
+    all_employees = db.get_employees()
+    
+    # Create employee check-in status list
+    employee_checkins = []
+    
+    # Get all employees who checked in today
+    checked_in_employees = {record['name']: record for record in today_records if record.get('check_in_time')}
+    
+    # Add employees who checked in today
+    for name, record in checked_in_employees.items():
+        check_in_time = record['check_in_time']
+        # Extract just the time part if it's a full datetime
+        if isinstance(check_in_time, str) and ' ' in check_in_time:
+            try:
+                time_part = datetime.strptime(check_in_time, '%Y-%m-%d %H:%M:%S').strftime('%H:%M:%S')
+            except:
+                time_part = check_in_time
+        else:
+            time_part = str(check_in_time)
+        
+        employee_checkins.append({
+            'name': name,
+            'status': 'Present',
+            'check_in_time': time_part,
+            'sort_time': check_in_time  # For sorting purposes
+        })
+    
+    # Add employees who didn't check in today
+    checked_in_names = set(checked_in_employees.keys())
+    for employee in all_employees:
+        if employee['name'] not in checked_in_names:
+            employee_checkins.append({
+                'name': employee['name'],
+                'status': 'Absent',
+                'check_in_time': 'Absent',
+                'sort_time': '0000-00-00 00:00:00'  # Sort absent employees to the end
+            })
+    
+    # Sort by check-in time (latest first), with absent employees at the end
+    employee_checkins.sort(key=lambda x: x['sort_time'], reverse=True)
+  
+    return render_template('index.html', 
+                         summary=summary, 
+                         employee_checkins=employee_checkins)
 
 @app.route('/dashboard')
 def dashboard():
     """Dashboard with summary"""
     db = get_db()
     summary = db.get_daily_summary()
-    recent_records = db.get_attendance_report()[:10]
-    employees = db.get_employees()
+    
+    # Get today's employee check-in information
+    today = datetime.now().strftime('%Y-%m-%d')
+    today_records = db.get_attendance_report(today, today)
+    all_employees = db.get_employees()
+    
+    # Create employee check-in status list
+    employee_checkins = []
+    
+    # Get all employees who checked in today
+    checked_in_employees = {record['name']: record for record in today_records if record.get('check_in_time')}
+    
+    # Add employees who checked in today
+    for name, record in checked_in_employees.items():
+        check_in_time = record['check_in_time']
+        # Extract just the time part if it's a full datetime
+        if isinstance(check_in_time, str) and ' ' in check_in_time:
+            try:
+                time_part = datetime.strptime(check_in_time, '%Y-%m-%d %H:%M:%S').strftime('%H:%M:%S')
+            except:
+                time_part = check_in_time
+        else:
+            time_part = str(check_in_time)
+        
+        employee_checkins.append({
+            'name': name,
+            'status': 'Present',
+            'check_in_time': time_part,
+            'sort_time': check_in_time  # For sorting purposes
+        })
+    
+    # Add employees who didn't check in today
+    checked_in_names = set(checked_in_employees.keys())
+    for employee in all_employees:
+        if employee['name'] not in checked_in_names:
+            employee_checkins.append({
+                'name': employee['name'],
+                'status': 'Absent',
+                'check_in_time': 'Absent',
+                'sort_time': '0000-00-00 00:00:00'  # Sort absent employees to the end
+            })
+    
+    # Sort by check-in time (latest first), with absent employees at the end
+    employee_checkins.sort(key=lambda x: x['sort_time'], reverse=True)
     
     return render_template('dashboard.html', 
                          summary=summary, 
-                         recent_records=recent_records,
-                         employees=employees)
+                         employee_checkins=employee_checkins)
 
 @app.route('/check_in', methods=['GET', 'POST'])
 def check_in():
@@ -109,6 +199,62 @@ def add_employee():
         return redirect(url_for('employees'))
     
     return render_template('add_employee.html')
+
+@app.route('/edit_employee/<string:name>', methods=['GET', 'POST'])
+def edit_employee(name):
+    """Edit employee page"""
+    db = get_db()
+    
+    if request.method == 'POST':
+        new_name = request.form.get('name', '').strip()
+        employee_id = request.form.get('employee_id', '').strip()
+        department = request.form.get('department', '').strip()
+        position = request.form.get('position', '').strip()
+        
+        if new_name:
+            try:
+                if db.update_employee(name, new_name, employee_id, department, position):
+                    flash(f'Employee {new_name} updated successfully!', 'success')
+                    return redirect(url_for('employees'))
+                else:
+                    flash(f'Failed to update employee {name}.', 'error')
+            except Exception as e:
+                flash(f'Error updating employee: {e}', 'error')
+        else:
+            flash('Name is required.', 'error')
+    
+    # Get current employee data
+    employees = db.get_employees()
+    employee_data = None
+    for emp in employees:
+        if emp['name'] == name:
+            employee_data = emp
+            break
+    
+    if not employee_data:
+        flash(f'Employee {name} not found.', 'error')
+        return redirect(url_for('employees'))
+    
+    return render_template('edit_employee.html', employee=employee_data)
+
+@app.route('/delete_employee', methods=['POST'])
+def delete_employee():
+    """Delete employee"""
+    name = request.form.get('name', '').strip()
+    
+    if name:
+        db = get_db()
+        try:
+            if db.delete_employee(name):
+                flash(f'Employee {name} deleted successfully!', 'success')
+            else:
+                flash(f'Failed to delete employee {name}.', 'error')
+        except Exception as e:
+            flash(f'Error deleting employee: {e}', 'error')
+    else:
+        flash('Invalid employee name.', 'error')
+    
+    return redirect(url_for('employees'))
 
 @app.route('/reports')
 def reports():
@@ -203,7 +349,6 @@ def status():
         'current_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'total_employees': summary.get('total_employees', 0),
         'present_today': summary.get('present_employees', 0),
-        'attendance_rate': summary.get('attendance_rate', 0),
         'system_status': 'Online'
     }
     
@@ -232,7 +377,7 @@ def create_templates():
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="/">Face Recognition Attendance System</a>
+            <a class="navbar-brand" href="/">T.S. Ma Attendance System</a>
             <div class="navbar-nav">
                 <a class="nav-link" href="/dashboard">Dashboard</a>
                 <a class="nav-link" href="/check_in">Check In</a>
@@ -271,8 +416,8 @@ def create_templates():
 {% block content %}
 <div class="row">
     <div class="col-md-12">
-        <h1 class="mb-4">Face Recognition Attendance System</h1>
-        <p class="lead">Automated attendance tracking with face recognition technology.</p>
+        <h1 class="mb-4">T.S. Ma Attendance System</h1>
+        <p class="lead">T.S. Ma Attendance System</p>
     </div>
 </div>
 
@@ -315,21 +460,81 @@ def create_templates():
     </div>
 </div>
 
-<div class="row mt-4">
-    <div class="col-md-12">
+<div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">System Information</h5>
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Today's Employee Check-ins</h5>
+                    <div class="d-flex align-items-center">
+                        <small class="text-muted me-3">
+                            Present: {{ summary.present_employees }} | Absent: {{ summary.absent_employees }}
+                        </small>
+                        <button class="btn btn-sm btn-outline-primary" onclick="location.reload()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
             </div>
             <div class="card-body">
-                <p><strong>Face Recognition:</strong> Automatic attendance tracking when faces are recognized</p>
-                <p><strong>Daily Tracking:</strong> Each person is checked in only once per day</p>
-                <p><strong>Real-time Updates:</strong> Live attendance data and reporting</p>
-                <p><strong>Remote Access:</strong> Web interface accessible from any device</p>
+                {% if employee_checkins %}
+                    <div class="table-responsive employee-table">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="40%">Employee Name</th>
+                                    <th width="25%">Status</th>
+                                    <th width="35%">Check-in Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for employee in employee_checkins %}
+                                <tr class="{% if employee.status == 'Absent' %}table-secondary{% endif %}">
+                                    <td>
+                                        <strong>{{ employee.name }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if employee.status == 'Present' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check"></i> {{ employee.status }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times"></i> {{ employee.status }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if employee.check_in_time != 'Absent' %}
+                                            <span class="text-primary check-in-time">
+                                                <i class="fas fa-clock"></i> {{ employee.check_in_time }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">
+                                                <i class="fas fa-minus"></i> {{ employee.check_in_time }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer bg-light">
+                        <small class="text-muted">
+                            <i class="fas fa-users"></i> Total: {{ employee_checkins|length }} employees | 
+                            <i class="fas fa-sync-alt"></i> Last updated: 
+                            <span id="last-updated"></span>
+                        </small>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
+                        <p>No employee data available</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
-</div>
 {% endblock %}'''
 
     # Dashboard template
@@ -350,28 +555,82 @@ def create_templates():
                 <p><strong>Total Employees:</strong> {{ summary.total_employees }}</p>
                 <p><strong>Present:</strong> {{ summary.present_employees }}</p>
                 <p><strong>Absent:</strong> {{ summary.absent_employees }}</p>
-                <p><strong>Attendance Rate:</strong> {{ "%.1f"|format(summary.attendance_rate) }}%</p>
                 <p><strong>Average Hours:</strong> {{ summary.average_hours }}</p>
             </div>
         </div>
     </div>
     
-    <div class="col-md-6">
+   <div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">Recent Activity</h5>
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Today's Employee Check-ins</h5>
+                    <div class="d-flex align-items-center">
+                        <small class="text-muted me-3">
+                            Present: {{ summary.present_employees }} | Absent: {{ summary.absent_employees }}
+                        </small>
+                        <button class="btn btn-sm btn-outline-primary" onclick="location.reload()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
             </div>
             <div class="card-body">
-                {% if recent_records %}
-                    {% for record in recent_records %}
-                        <div class="mb-2">
-                            <strong>{{ record.name }}</strong> - {{ record.date }}<br>
-                            <small>Check-in: {{ record.check_in_time or 'N/A' }} | 
-                                   Check-out: {{ record.check_out_time or 'N/A' }}</small>
-                        </div>
-                    {% endfor %}
+                {% if employee_checkins %}
+                    <div class="table-responsive employee-table">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="40%">Employee Name</th>
+                                    <th width="25%">Status</th>
+                                    <th width="35%">Check-in Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for employee in employee_checkins %}
+                                <tr class="{% if employee.status == 'Absent' %}table-secondary{% endif %}">
+                                    <td>
+                                        <strong>{{ employee.name }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if employee.status == 'Present' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check"></i> {{ employee.status }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times"></i> {{ employee.status }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if employee.check_in_time != 'Absent' %}
+                                            <span class="text-primary check-in-time">
+                                                <i class="fas fa-clock"></i> {{ employee.check_in_time }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">
+                                                <i class="fas fa-minus"></i> {{ employee.check_in_time }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer bg-light">
+                        <small class="text-muted">
+                            <i class="fas fa-users"></i> Total: {{ employee_checkins|length }} employees | 
+                            <i class="fas fa-sync-alt"></i> Last updated: 
+                            <span id="last-updated"></span>
+                        </small>
+                    </div>
                 {% else %}
-                    <p>No recent activity</p>
+                    <div class="text-center py-4">
+                        <i class="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
+                        <p>No employee data available</p>
+                    </div>
                 {% endif %}
             </div>
         </div>

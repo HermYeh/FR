@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 from ui_dialogs import CustomDialog
 from attendance_database import AttendanceDatabase
+from virtual_keyboard import VirtualKeyboard
 
 
 class MenuManager:
@@ -16,7 +17,82 @@ class MenuManager:
         self.selected_date = None
         self.attendance_db = AttendanceDatabase()
         self._injected_start_capture = lambda menu_window=None: None
+        self.active_keyboards = []  # Track active virtual keyboards
     
+    def setup_virtual_keyboard_for_entry(self, entry_widget, text_var, parent_container, confirm_callback=None):
+        """Set up virtual keyboard for an entry widget"""
+        try:
+            # Create a container for the virtual keyboard if it doesn't exist
+            if not hasattr(parent_container, 'keyboard_container'):
+                parent_container.keyboard_container = tk.Frame(parent_container, bg='#2c3e50')
+                parent_container.keyboard_container.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+            
+            # Hide other keyboards in this container
+            self.hide_all_keyboards_in_container(parent_container)
+            
+            # Create virtual keyboard
+            virtual_keyboard = VirtualKeyboard(parent_container.keyboard_container, text_var)
+            virtual_keyboard.setup_dynamic_keyboard(entry_widget, confirm_callback)
+            
+            # Track this keyboard
+            self.active_keyboards.append(virtual_keyboard)
+            
+            return virtual_keyboard
+            
+        except Exception as e:
+            print(f"Error setting up virtual keyboard: {e}")
+            return None
+    
+    def hide_all_keyboards_in_container(self, container):
+        """Hide all virtual keyboards in a container"""
+        try:
+            # Hide keyboards that might be showing
+            for keyboard in self.active_keyboards:
+                if keyboard.is_visible:
+                    keyboard.hide_keyboard()
+        except Exception as e:
+            print(f"Error hiding keyboards: {e}")
+    
+    def cleanup_keyboards(self):
+        """Clean up all virtual keyboards"""
+        try:
+            for keyboard in self.active_keyboards:
+                keyboard.destroy()
+            self.active_keyboards.clear()
+        except Exception as e:
+            print(f"Error cleaning up keyboards: {e}")
+    
+    def change_hour(self, delta):
+        """Change hour value with wrapping (0-23)"""
+        current_hour = self.hour_var.get()
+        new_hour = (current_hour + delta) % 24
+        self.hour_var.set(new_hour)
+        selected_time = f"{self.hour_var.get():02d}:{self.minute_var.get():02d}"
+        self.time_var.set(selected_time)
+    
+    def change_minute(self, delta):
+        """Change minute value (only 00 or 30)"""
+        current_minute = self.minute_var.get()
+        current_hour = self.hour_var.get()
+
+        if delta > 0:  # Up button
+        
+            if current_minute == 0:
+                new_minute = 30 
+            else:
+                new_minute=0
+                current_hour=current_hour+1
+                self.hour_var.set(current_hour)
+        else:  # Down button
+            if current_minute == 30:
+                new_minute = 0
+            else:
+                new_minute=30
+                current_hour=current_hour-1
+                self.hour_var.set(current_hour)
+        self.minute_var.set(new_minute)
+        selected_time = f"{self.hour_var.get():02d}:{self.minute_var.get():02d}"
+        self.time_var.set(selected_time)
        
     def show_main_menu_window(self, root):
         self.menu_window = tk.Toplevel(root)
@@ -139,7 +215,7 @@ class MenuManager:
         buttons_frame = tk.Frame(section_frame, bg='#2c3e50')
         buttons_frame.pack(fill=tk.X, padx=15, pady=15)
         attendance_btn = tk.Button(buttons_frame, text="Attendance", 
-                              command=self.show_attendance_settings,
+                              command=lambda: self.show_attendance_settings(parent),
                               bg='#34495e', fg='white', **button_config)
         attendance_btn.pack(side=tk.LEFT, padx=(0, 10))
         
@@ -748,8 +824,9 @@ Do you want to continue?"""
         content_frame = tk.Frame(form_frame, bg='#34495e')
         content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        # Form fields
+        # Form fields with virtual keyboard support
         fields = {}
+        field_vars = {}
         
         # Name field (required)
         name_label = tk.Label(content_frame, text="Name *", 
@@ -757,7 +834,9 @@ Do you want to continue?"""
                              fg='#ecf0f1', bg='#34495e')
         name_label.pack(anchor=tk.W, pady=(0, 5))
         
-        fields['name'] = tk.Entry(content_frame, font=('Arial', 12), 
+        field_vars['name'] = tk.StringVar()
+        fields['name'] = tk.Entry(content_frame, textvariable=field_vars['name'], 
+                                 font=('Arial', 12), 
                                  bg='#ffffff', fg='#2c3e50', width=40)
         fields['name'].pack(fill=tk.X, pady=(0, 15))
         fields['name'].focus_set()
@@ -768,7 +847,9 @@ Do you want to continue?"""
                            fg='#ecf0f1', bg='#34495e')
         id_label.pack(anchor=tk.W, pady=(0, 5))
         
-        fields['employee_id'] = tk.Entry(content_frame, font=('Arial', 12), 
+        field_vars['employee_id'] = tk.StringVar()
+        fields['employee_id'] = tk.Entry(content_frame, textvariable=field_vars['employee_id'],
+                                        font=('Arial', 12), 
                                         bg='#ffffff', fg='#2c3e50', width=40)
         fields['employee_id'].pack(fill=tk.X, pady=(0, 15))
         
@@ -778,7 +859,9 @@ Do you want to continue?"""
                              fg='#ecf0f1', bg='#34495e')
         dept_label.pack(anchor=tk.W, pady=(0, 5))
         
-        fields['department'] = tk.Entry(content_frame, font=('Arial', 12), 
+        field_vars['department'] = tk.StringVar()
+        fields['department'] = tk.Entry(content_frame, textvariable=field_vars['department'],
+                                       font=('Arial', 12), 
                                        bg='#ffffff', fg='#2c3e50', width=40)
         fields['department'].pack(fill=tk.X, pady=(0, 15))
         
@@ -788,9 +871,15 @@ Do you want to continue?"""
                             fg='#ecf0f1', bg='#34495e')
         pos_label.pack(anchor=tk.W, pady=(0, 5))
         
-        fields['position'] = tk.Entry(content_frame, font=('Arial', 12), 
+        field_vars['position'] = tk.StringVar()
+        fields['position'] = tk.Entry(content_frame, textvariable=field_vars['position'],
+                                     font=('Arial', 12), 
                                      bg='#ffffff', fg='#2c3e50', width=40)
         fields['position'].pack(fill=tk.X, pady=(0, 15))
+        
+        # Set up virtual keyboards for all entry fields
+        for field_name, entry_widget in fields.items():
+            self.setup_virtual_keyboard_for_entry(entry_widget, field_vars[field_name], main_frame)
         
         # Button frame
         button_frame = tk.Frame(main_frame, bg='#2c3e50')
@@ -801,10 +890,10 @@ Do you want to continue?"""
         
         def on_save():
             """Handle save button click"""
-            name = fields['name'].get().strip()
-            employee_id = fields['employee_id'].get().strip() or None
-            department = fields['department'].get().strip() or None
-            position = fields['position'].get().strip() or None
+            name = field_vars['name'].get().strip()
+            employee_id = field_vars['employee_id'].get().strip() or None
+            department = field_vars['department'].get().strip() or None
+            position = field_vars['position'].get().strip() or None
             
             # Validate required fields
             if not name:
@@ -824,6 +913,7 @@ Do you want to continue?"""
                 if success:
                     result['success'] = True
                     CustomDialog.show_info(dialog, "Success", f"Employee '{name}' added successfully!")
+                    self.cleanup_keyboards()
                     dialog.destroy()
                 else:
                     CustomDialog.show_error(dialog, "Error", f"Employee '{name}' already exists!")
@@ -833,6 +923,7 @@ Do you want to continue?"""
         
         def on_cancel():
             """Handle cancel button click"""
+            self.cleanup_keyboards()
             dialog.destroy()
         
         # Save button
@@ -856,7 +947,10 @@ Do you want to continue?"""
         cancel_btn.pack(side=tk.RIGHT)
         
         # Handle window close
-        dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+        def on_window_close():
+            self.cleanup_keyboards()
+            on_cancel()
+        dialog.protocol("WM_DELETE_WINDOW", on_window_close)
         
         # Bind Enter and Escape keys
         def on_enter(event):
@@ -882,7 +976,7 @@ Do you want to continue?"""
             self.edit_todays_checkins()
     
     def edit_todays_checkins(self):
-        """Edit today's check-ins with video pause and deletion options"""
+        """Edit today's check-ins with video pause and deletion options - shows all employees"""
         if not self.attendance_db:
             CustomDialog.show_warning(self.menu_window, "Warning", "Attendance database not available")
             return
@@ -890,15 +984,54 @@ Do you want to continue?"""
         try:
             from datetime import datetime
             today = datetime.now().strftime("%Y-%m-%d")
-            records = self.attendance_db.get_attendance_report(today, today)
             
-            checkins = [record for record in records if record.get('check_in_time')]
-            # Create edit window
-            self.create_edit_checkins_window(checkins)
+            # Get all employees
+            all_employees = self.attendance_db.get_employees()
+            
+            # Get today's attendance records
+            attendance_records = self.attendance_db.get_attendance_report(today, today)
+            
+            # Create a dictionary of attendance records by employee name
+            attendance_dict = {}
+            for record in attendance_records:
+                attendance_dict[record['name']] = record
+            
+            # Combine all employees with their attendance status
+            combined_data = []
+            
+            # Add not checked-in employees first
+            for employee in all_employees:
+                if employee['name'] not in attendance_dict:
+                    combined_data.append({
+                        'name': employee['name'],
+                        'check_in_time': None,
+                        'check_out_time': None,
+                        'status': 'Not Checked In',
+                        'total_hours': None,
+                        'date': today,
+                        'is_checked_in': False
+                    })
+            
+            # Add checked-in employees, sorted by latest check-in to oldest
+            checked_in_employees = []
+            for employee in all_employees:
+                if employee['name'] in attendance_dict:
+                    record = attendance_dict[employee['name']]
+                    record['is_checked_in'] = True
+                    checked_in_employees.append(record)
+            
+            # Sort checked-in employees by check-in time (latest first)
+            checked_in_employees.sort(key=lambda x: x.get('check_in_time', ''), reverse=True)
+            
+            # Combine: not checked-in first, then checked-in (latest to oldest)
+            combined_data.extend(checked_in_employees)
+            
+            # Create edit window with all employee data
+            self.create_edit_checkins_window(combined_data)
             
         except Exception as e:
-            CustomDialog.show_error(self.menu_window,"Error", f"Failed to load check-ins for editing: {e}")
-           
+            CustomDialog.show_error(self.menu_window, "Error", f"Failed to load employee data: {e}")
+    
     def show_checkin(self):
         # Clear the current frame and show checkin photos interface
         if self.menu_window and self.menu_window.winfo_exists():
@@ -919,44 +1052,63 @@ Do you want to continue?"""
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
         # Title (larger font)
-        title_label = tk.Label(main_frame, text="Edit Today's Check-ins", 
+        title_label = tk.Label(main_frame, text="Today's Employee Attendance", 
                               font=('Arial', 22, 'bold'), 
                               fg='#ecf0f1', bg='#2c3e50')
         title_label.pack(pady=(0, 20))
         
         # Instructions (larger font)
         instruction_label = tk.Label(main_frame, 
-                                   text="Click on a check-in entry to delete it.\nVideo is paused during editing.",
+                                   text="All employees shown: Not checked-in employees first, then latest check-ins.\nClick entry to delete check-in record. Video is paused during editing.",
                                    font=('Arial', 14), 
                                    fg='#bdc3c7', bg='#2c3e50')
         instruction_label.pack(pady=(0, 15))
         
-        # Create frame for listbox and scrollbar
-        list_frame = tk.Frame(main_frame, bg='#2c3e50')
-        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
+        # Create frame for table and scrollbar
+        table_frame = tk.Frame(main_frame, bg='#2c3e50')
+        table_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
         
-        # Listbox for check-ins (larger for easier selection)
-        self.checkins_listbox = tk.Listbox(list_frame, 
-                                          font=('Arial', 16, 'bold'),
-                                          bg='#34495e', 
-                                          fg='#ecf0f1',
-                                          selectbackground='#4a6741',
-                                          selectforeground='white',
-                                          relief=tk.SUNKEN,
-                                          bd=2,
-                                          height=18)
+        # Create Treeview for table display
+        columns = ('name', 'check_in', 'check_out', 'status')
+        self.employee_table = ttk.Treeview(table_frame, columns=columns, show='headings', height=18)
         
+        # Define column headings and widths
+        self.employee_table.heading('name', text='Employee Name')
+        self.employee_table.heading('check_in', text='Check-In Time')
+        self.employee_table.heading('check_out', text='Check-Out Time')
+        self.employee_table.heading('status', text='Status')
+        
+        # Configure column widths
+        self.employee_table.column('name', width=200, minwidth=150)
+        self.employee_table.column('check_in', width=120, minwidth=100)
+        self.employee_table.column('check_out', width=120, minwidth=100)
+        self.employee_table.column('status', width=150, minwidth=100)
+        
+        # Configure table styling
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('Treeview', 
+                       background='#34495e',
+                       foreground='#ecf0f1',
+                       fieldbackground='#34495e',
+                       font=('Arial', 12))
+        style.configure('Treeview.Heading',
+                       background='#2c3e50',
+                       foreground='#ecf0f1',
+                       font=('Arial', 12, 'bold'))
+        style.map('Treeview', 
+                 background=[('selected', '#4a6741')])
+        
+        # Scrollbar for table
+        scrollbar = tk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.employee_table.yview)
+        self.employee_table.config(yscrollcommand=scrollbar.set)
          
-        # Scrollbar for listbox
-        scrollbar = tk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.checkins_listbox.yview)
-        self.checkins_listbox.config(yscrollcommand=scrollbar.set)
-         
-        # Pack listbox and scrollbar
-        self.checkins_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # Pack table and scrollbar
+        self.employee_table.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Populate listbox with check-ins
-        self.populate_checkins_listbox(checkins)
+        # Populate table with employee data
+        self.populate_employee_table(checkins)
         
         # Button frame
         button_frame = tk.Frame(main_frame, bg='#2c3e50')
@@ -990,113 +1142,183 @@ Do you want to continue?"""
         close_button.pack(side=tk.RIGHT)
         
         # Bind double-click event
-        self.checkins_listbox.bind('<Double-Button-1>', self.on_checkin_double_click)
+        self.employee_table.bind('<Double-Button-1>', self.on_checkin_double_click)
         
         # Store checkins data for reference
         self.edit_checkins_data = checkins
     def refresh_checkins_list(self):
-        """Refresh the check-ins list"""
+        """Refresh the check-ins list - shows all employees with their attendance status"""
         if not self.attendance_db:
-            CustomDialog.show_error(self.menu_window,"Error", "Attendance database not initialized.")
+            CustomDialog.show_error(self.menu_window, "Error", "Attendance database not initialized.")
             return
         try:
             from datetime import datetime
             today = datetime.now().strftime("%Y-%m-%d")
-            records = self.attendance_db.get_attendance_report(today, today)
             
-            checkins = [record for record in records if record.get('check_in_time')]
-            self.edit_checkins_data = checkins
+            # Get all employees
+            all_employees = self.attendance_db.get_employees()
             
-            self.populate_checkins_listbox(checkins)
+            # Get today's attendance records
+            attendance_records = self.attendance_db.get_attendance_report(today, today)
             
-     
-            CustomDialog.show_info(self.menu_window,"Refresh Complete", f"List refreshed. {len(checkins)} check-ins found.")
+            # Create a dictionary of attendance records by employee name
+            attendance_dict = {}
+            for record in attendance_records:
+                attendance_dict[record['name']] = record
+            
+            # Combine all employees with their attendance status
+            combined_data = []
+            
+            # Add not checked-in employees first
+            for employee in all_employees:
+                if employee['name'] not in attendance_dict:
+                    combined_data.append({
+                        'name': employee['name'],
+                        'check_in_time': None,
+                        'check_out_time': None,
+                        'status': 'Not Checked In',
+                        'total_hours': None,
+                        'date': today,
+                        'is_checked_in': False
+                    })
+            
+            # Add checked-in employees, sorted by latest check-in to oldest
+            checked_in_employees = []
+            for employee in all_employees:
+                if employee['name'] in attendance_dict:
+                    record = attendance_dict[employee['name']]
+                    record['is_checked_in'] = True
+                    checked_in_employees.append(record)
+            
+            # Sort checked-in employees by check-in time (latest first)
+            checked_in_employees.sort(key=lambda x: x.get('check_in_time', ''), reverse=True)
+            
+            # Combine: not checked-in first, then checked-in (latest to oldest)
+            combined_data.extend(checked_in_employees)
+            
+            # Store and populate the updated data
+            self.edit_checkins_data = combined_data
+            self.populate_employee_table(combined_data)
+            
+            CustomDialog.show_info(self.menu_window, "Refresh Complete", f"List refreshed. {len(all_employees)} total employees, {len(checked_in_employees)} checked in.")
                 
         except Exception as e:
-            CustomDialog.show_error(self.menu_window,"Error", f"Failed to refresh list: {e}")
+            CustomDialog.show_error(self.menu_window, "Error", f"Failed to refresh list: {e}")
     
  
     
 
 
 
-    def populate_checkins_listbox(self, checkins):
-        """Populate the listbox with check-in entries"""
-        self.checkins_listbox.delete(0, tk.END)
+    def populate_employee_table(self, employee_data):
+        """Populate the table with employee entries including check-out time and status"""
+        self.employee_table.delete(*self.employee_table.get_children())
         
-        # Sort by check-in time
-        checkins.sort(key=lambda x: x['check_in_time'])
-        
-        for i, record in enumerate(checkins, 1):
+        for record in employee_data:
             name = record['name']
-            check_in_time = record['check_in_time']
+            check_in_time = record.get('check_in_time')
+            check_out_time = record.get('check_out_time')
             
-            # Format time
-            if isinstance(check_in_time, str):
-                try:
-                    from datetime import datetime
-                    time_obj = datetime.strptime(check_in_time, "%Y-%m-%d %H:%M:%S")
-                    formatted_time = time_obj.strftime("%H:%M:%S")
-                except:
-                    formatted_time = check_in_time
+            # Format check-in time
+            if check_in_time:
+                if isinstance(check_in_time, str):
+                    try:
+                        from datetime import datetime
+                        time_obj = datetime.strptime(check_in_time, "%Y-%m-%d %H:%M:%S")
+                        formatted_check_in = time_obj.strftime("%H:%M:%S")
+                    except:
+                        formatted_check_in = check_in_time
+                else:
+                    formatted_check_in = str(check_in_time)
             else:
-                formatted_time = str(check_in_time)
+                formatted_check_in = "Not Checked In"
             
-            # Create display entry
-            entry_text = f"{i:2d}. {name:<20} - {formatted_time}"
-            self.checkins_listbox.insert(tk.END, entry_text)
+            # Format check-out time
+            if check_out_time:
+                if isinstance(check_out_time, str):
+                    try:
+                        from datetime import datetime
+                        time_obj = datetime.strptime(check_out_time, "%Y-%m-%d %H:%M:%S")
+                        formatted_check_out = time_obj.strftime("%H:%M:%S")
+                    except:
+                        formatted_check_out = check_out_time
+                else:
+                    formatted_check_out = str(check_out_time)
+            else:
+                formatted_check_out = "Not Checked Out" if check_in_time else "N/A"
+            
+            # Determine status display
+            if not check_in_time:
+                status_display = "Not Checked In"
+            elif check_out_time:
+                status_display = "Checked Out"
+            else:
+                status_display = "Checked In"
+            
+            # Insert row into table
+            self.employee_table.insert('', 'end', values=(name, formatted_check_in, formatted_check_out, status_display))
     
     def on_checkin_double_click(self, event):
         """Handle double-click on check-in entry"""
-        selection = self.checkins_listbox.curselection()
+        selection = self.employee_table.selection()
         if selection:
             self.delete_selected_checkin()
     
 
 
     def delete_selected_checkin(self):
-        """Delete the selected check-in entry"""
+        """Delete the selected check-in entry - only allows deletion of actual check-in records"""
         if not self.attendance_db:
-            CustomDialog.show_error(self.menu_window,"Error", "Attendance database not initialized.")
+            CustomDialog.show_error(self.menu_window, "Error", "Attendance database not initialized.")
             return
             
-        selection = self.checkins_listbox.curselection()
+        selection = self.employee_table.selection()
         print(f"Selection: {selection}")
         
         if not selection:
-            CustomDialog.show_warning(self.menu_window, "Warning", "Please select a check-in entry to delete.")
+            CustomDialog.show_warning(self.menu_window, "Warning", "Please select an entry to delete.")
             return
         
-        index = selection[0]
-        print(f"Selected index: {index}, Total data items: {len(self.edit_checkins_data)}")
+        # Get the selected item
+        selected_item = selection[0]
+        item_values = self.employee_table.item(selected_item, 'values')
         
-        if index >= len(self.edit_checkins_data):
-            CustomDialog.show_error(self.menu_window,"Error", "Invalid selection.")
+        if not item_values:
+            CustomDialog.show_error(self.menu_window, "Error", "Invalid selection.")
             return
         
-        # Get the record to delete
-        record_to_delete = self.edit_checkins_data[index]
-        name = record_to_delete['name']
-        check_in_time = record_to_delete['check_in_time']
+        # Extract employee name from the table row
+        name = item_values[0]
+        formatted_check_in = item_values[1]
+        status_display = item_values[3]
+        
+        # Find the corresponding record in our data
+        record_to_delete = None
+        for record in self.edit_checkins_data:
+            if record['name'] == name:
+                record_to_delete = record
+                break
+        
+        if not record_to_delete:
+            CustomDialog.show_error(self.menu_window, "Error", "Could not find employee record.")
+            return
+        
+        check_in_time = record_to_delete.get('check_in_time')
+        
+        # Check if this is a "Not Checked In" employee
+        if not check_in_time or not record_to_delete.get('is_checked_in', True):
+            CustomDialog.show_info(self.menu_window, "Cannot Delete", 
+                                 f"{name} has not checked in today.\n\n"
+                                 "Only actual check-in records can be deleted.")
+            return
         
         print(f"Attempting to delete check-in for {name} at {check_in_time}")
 
-        # Format time for display
-        if isinstance(check_in_time, str):
-            try:
-                from datetime import datetime
-                time_obj = datetime.strptime(check_in_time, "%Y-%m-%d %H:%M:%S")
-                formatted_time = time_obj.strftime("%H:%M:%S")
-            except:
-                formatted_time = check_in_time
-        else:
-            formatted_time = str(check_in_time)
-        
-        # Confirm deletion
+        # Confirm deletion using the formatted time from the table
         result = CustomDialog.ask_yes_no(self.menu_window, "Confirm Deletion", 
                                    f"Are you sure you want to delete this check-in?\n\n"
                                    f"Employee: {name}\n"
-                                   f"Time: {formatted_time}\n\n"
+                                   f"Check-in Time: {formatted_check_in}\n\n"
                                    "This action cannot be undone.")
         
         if result:
@@ -1109,34 +1331,69 @@ Do you want to continue?"""
                 if success:
                     print("Database deletion successful, updating UI...")
                     
-                    # Refresh the check-ins data from database to ensure consistency
+                    # Refresh using the same logic as refresh_checkins_list
                     from datetime import datetime
                     today = datetime.now().strftime("%Y-%m-%d")
-                    records = self.attendance_db.get_attendance_report(today, today)
-                    self.edit_checkins_data = [record for record in records if record.get('check_in_time')]
                     
-                    print(f"Refreshed data from database, now have {len(self.edit_checkins_data)} items")
+                    # Get all employees
+                    all_employees = self.attendance_db.get_employees()
                     
-                    # Clear listbox completely and repopulate
-                    self.checkins_listbox.delete(0, tk.END)
+                    # Get today's attendance records
+                    attendance_records = self.attendance_db.get_attendance_report(today, today)
                     
-              
-                    self.populate_checkins_listbox(self.edit_checkins_data)
-                    print("Listbox repopulated with remaining data")
-                   
+                    # Create a dictionary of attendance records by employee name
+                    attendance_dict = {}
+                    for record in attendance_records:
+                        attendance_dict[record['name']] = record
                     
-                    # Main textbox will be updated when returning to main UI
+                    # Combine all employees with their attendance status
+                    combined_data = []
                     
-         
-                    # If no more check-ins, go back to main menu
-                  
+                    # Add not checked-in employees first
+                    for employee in all_employees:
+                        if employee['name'] not in attendance_dict:
+                            combined_data.append({
+                                'name': employee['name'],
+                                'check_in_time': None,
+                                'check_out_time': None,
+                                'status': 'Not Checked In',
+                                'total_hours': None,
+                                'date': today,
+                                'is_checked_in': False
+                            })
+                    
+                    # Add checked-in employees, sorted by latest check-in to oldest
+                    checked_in_employees = []
+                    for employee in all_employees:
+                        if employee['name'] in attendance_dict:
+                            record = attendance_dict[employee['name']]
+                            record['is_checked_in'] = True
+                            checked_in_employees.append(record)
+                    
+                    # Sort checked-in employees by check-in time (latest first)
+                    checked_in_employees.sort(key=lambda x: x.get('check_in_time', ''), reverse=True)
+                    
+                    # Combine: not checked-in first, then checked-in (latest to oldest)
+                    combined_data.extend(checked_in_employees)
+                    
+                    # Update data and UI
+                    self.edit_checkins_data = combined_data
+                    
+                    print(f"Refreshed data from database, now have {len(self.edit_checkins_data)} total employees")
+                    
+                    # Clear table completely and repopulate
+                    self.employee_table.delete(*self.employee_table.get_children())
+                    self.populate_employee_table(self.edit_checkins_data)
+                    
+                    CustomDialog.show_info(self.menu_window, "Success", f"Check-in for {name} deleted successfully.")
+                    print("Table repopulated with remaining data")
                 else:
                     print("Database deletion failed")
-                    CustomDialog.show_error(self.menu_window,"Error", f"Failed to delete check-in for {name}.")
-                    
+                    CustomDialog.show_error(self.menu_window, "Error", f"Failed to delete check-in for {name}.")
+                     
             except Exception as e:
                 print(f"Exception during deletion: {e}")
-                CustomDialog.show_error(self.menu_window,"Error", f"Failed to delete check-in: {e}")
+                CustomDialog.show_error(self.menu_window, "Error", f"Failed to delete check-in: {e}")
         else:
             print("User cancelled deletion")
     
@@ -1722,11 +1979,17 @@ Do you want to continue?"""
         """Export attendance report"""
         # This method will be implemented with dependency injection
         pass
-    def show_attendance_settings(self):
+    def show_attendance_settings(self, parent):
         """Show attendance settings dialog"""
+
+        parent.destroy()
+        config = self.load_attendance_config()
+        self.time_var= tk.StringVar(value=config.get("auto_checkout_time", "21:00"));
         self.show_attendance_settings_dialog()
     
     def load_attendance_config(self):
+
+
         """Load attendance configuration from file"""
         import json
         import os
@@ -1767,41 +2030,21 @@ Do you want to continue?"""
             return False
     
     def show_attendance_settings_dialog(self):
-        """Show dialog for attendance settings"""
-        # Create dialog window
-        dialog = tk.Toplevel(self.menu_window)
-        dialog.grab_set()
-        dialog.title("Attendance Settings")
-        dialog.configure(bg='#2c3e50')
-        dialog.resizable(False, False)
-        dialog.transient(self.menu_window)
         
-        # Center dialog relative to parent
-        dialog.update_idletasks()
-        width = 600
-        height = 500
         
-        # Get parent window position and size
-        if self.menu_window:
-            self.menu_window.update_idletasks()
-            parent_x = self.menu_window.winfo_x()
-            parent_y = self.menu_window.winfo_y()
-            parent_width = self.menu_window.winfo_width()
-            parent_height = self.menu_window.winfo_height()
-        else:
-            parent_x = parent_y = parent_width = parent_height = 0
+    
+
         
-        # Calculate center position relative to parent
-        x = parent_x + (parent_width - width) // 2
-        y = parent_y + (parent_height - height) // 2
-        
-        dialog.geometry(f"{width}x{height}+{x}+{y}")
-        
-        # Load current configuration
+        try:
+            current_hour, current_minute = map(int, self.time_var.get().split(':'))
+        except:
+            current_hour, current_minute = 21, 0
+        self.minute_var = tk.IntVar(value=current_minute)
+        self.hour_var = tk.IntVar(value=current_hour)
         config = self.load_attendance_config()
         
         # Main frame
-        main_frame = tk.Frame(dialog, bg='#2c3e50')
+        main_frame = tk.Frame(self.menu_window, bg='#2c3e50')
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
         # Title
@@ -1852,9 +2095,9 @@ Do you want to continue?"""
         
         def update_time_fields():
             state = tk.NORMAL if auto_checkout_var.get() else tk.DISABLED
-            time_entry.config(state=state)
-            for day_cb in day_checkboxes.values():
-                day_cb.config(state=state)
+            time_button.config(state=state)
+            for day_data in day_checkboxes.values():
+                day_data['widget'].config(state=tk.NORMAL if auto_checkout_var.get() else tk.DISABLED)
         
         toggle_btn = tk.Button(auto_frame, text="OFF",
                               command=toggle_auto_checkout,
@@ -1873,11 +2116,162 @@ Do you want to continue?"""
                              fg='#ecf0f1', bg='#34495e')
         time_label.pack(side=tk.LEFT)
         
-        time_entry = tk.Entry(time_frame, font=('Arial', 12), 
-                             bg='#ffffff', fg='#2c3e50', width=10)
-        time_entry.insert(0, config.get("auto_checkout_time", "18:00"))
-        time_entry.pack(side=tk.RIGHT, padx=(10, 0))
+        self.time_var = tk.StringVar(value=config.get("auto_checkout_time", "21:00"))
         
+        def select_time():
+            
+     
+            
+            # Parse current time
+            current_time = self.time_var.get()
+     
+            
+            # Create time picker frame in the main window
+            self.time_picker_frame = tk.Frame(main_frame, bg='#34495e', relief=tk.RAISED, bd=3)
+            self.time_picker_frame.pack(fill=tk.X, pady=(20, 0))
+            
+            # Title
+            title_label = tk.Label(self.time_picker_frame, text="Select Auto Check-out Time", 
+                                  font=('Arial', 16, 'bold'), 
+                                  fg='#ecf0f1', bg='#34495e')
+            title_label.pack(pady=(15, 10))
+            
+            # Main time picker layout frame
+            time_main_frame = tk.Frame(self.time_picker_frame, bg='#34495e')
+            time_main_frame.pack(pady=(0, 15))
+            
+            # Time display frame (left side)
+            time_display_frame = tk.Frame(time_main_frame, bg='#34495e')
+            time_display_frame.pack(side=tk.LEFT, padx=(20, 30))
+            
+            # Hour section
+            hour_frame = tk.Frame(time_display_frame, bg='#2c3e50', relief=tk.RAISED, bd=3)
+            hour_frame.pack(side=tk.LEFT, padx=(0, 10))
+            
+            # Hour label
+            hour_title = tk.Label(hour_frame, text="Hour", 
+                                 font=('Arial', 12, 'bold'), 
+                                 fg='#ecf0f1', bg='#2c3e50')
+            hour_title.pack(pady=(10, 5))
+            
+            # Hour up button
+  
+            hour_up_btn = tk.Button(hour_frame, text="▲", 
+                                   font=('Arial', 16, 'bold'),
+                                   bg='#3498db', fg='white',
+                                   width=4, height=1,
+                                   command=lambda: self.change_hour( 1))
+            hour_up_btn.pack(pady=5)
+            
+            # Hour display (giant label)
+            hour_display = tk.Label(hour_frame, textvariable=self.hour_var,
+                                   font=('Arial', 48, 'bold'),
+                                   fg='#27ae60', bg='#2c3e50',
+                                   width=3, height=2)
+            hour_display.pack(pady=10)
+            
+            # Hour down button
+            hour_down_btn = tk.Button(hour_frame, text="▼", 
+                                     font=('Arial', 16, 'bold'),
+                                     bg='#e74c3c', fg='white',
+                                     width=4, height=1,
+                                     command=lambda: self.change_hour( -1))
+            hour_down_btn.pack(pady=(5, 10))
+            
+            # Colon separator
+            colon_label = tk.Label(time_display_frame, text=":", 
+                                  font=('Arial', 48, 'bold'), 
+                                  fg='#ecf0f1', bg='#34495e')
+            colon_label.pack(side=tk.LEFT, padx=15)
+            
+            # Minute section
+            minute_frame = tk.Frame(time_display_frame, bg='#2c3e50', relief=tk.RAISED, bd=3)
+            minute_frame.pack(side=tk.LEFT, padx=(10, 0))
+            
+            # Minute label
+            minute_title = tk.Label(minute_frame, text="Minute", 
+                                   font=('Arial', 12, 'bold'), 
+                                   fg='#ecf0f1', bg='#2c3e50')
+            minute_title.pack(pady=(10, 5))
+            
+            # Minute up button
+   
+            minute_up_btn = tk.Button(minute_frame, text="▲", 
+                                     font=('Arial', 16, 'bold'),
+                                     bg='#3498db', fg='white',
+                                     width=4, height=1,
+                                     command=lambda: self.change_minute(30))
+            minute_up_btn.pack(pady=5)
+            
+            # Minute display (giant label)
+            minute_display = tk.Label(minute_frame, text=f"{current_minute:02d}",
+                                     font=('Arial', 48, 'bold'),
+                                     fg='#27ae60', bg='#2c3e50',
+                                     width=3, height=2)
+            minute_display.pack(pady=10)
+            
+            # Minute down button
+            minute_down_btn = tk.Button(minute_frame, text="▼", 
+                                       font=('Arial', 16, 'bold'),
+                                       bg='#e74c3c', fg='white',
+                                       width=4, height=1,
+                                       command=lambda: self.change_minute(-30))
+            minute_down_btn.pack(pady=(5, 10))
+            
+            # Update minute display when variable changes
+            def update_minute_display(*args):
+                minute_display.config(text=f"{self.minute_var.get():02d}")
+            self.minute_var.trace('w', update_minute_display)
+            
+            # Control buttons frame (right side)
+            picker_button_frame = tk.Frame(time_main_frame, bg='#34495e')
+            picker_button_frame.pack(side=tk.RIGHT, padx=(30, 20))
+            
+            def confirm_time():
+        
+                selected_time = f"{self.hour_var.get():02d}:{self.minute_var.get():02d}"
+                self.time_var.set(selected_time)
+                on_save()
+                self.time_picker_frame.destroy()
+            
+            def cancel_time():
+                
+                on_cancel()
+                self.time_picker_frame.destroy()
+                
+            
+            # Confirm button (stacked vertically)
+            confirm_btn = tk.Button(picker_button_frame, text="✓ Confirm Time", 
+                                   command=confirm_time,
+                                   font=('Arial', 12, 'bold'),
+                                   bg='#27ae60', fg='white',
+                                   width=15, height=2,
+                                   relief=tk.RAISED, bd=3)
+            confirm_btn.pack(pady=(10, 5))
+            
+            # Cancel button
+            cancel_btn = tk.Button(picker_button_frame, text="✗ Cancel", 
+                                  command=cancel_time,
+                                  font=('Arial', 12, 'bold'),
+                                  bg='#e74c3c', fg='white',
+                                  width=15, height=2,
+                                  relief=tk.RAISED, bd=3)
+            cancel_btn.pack(pady=(5, 10))
+            
+            # Update button appearance
+  
+        # Set default value if not valid
+        if not self.time_var.get() or ':' not in self.time_var.get():
+            self.time_var.set("1:00")
+        
+        time_button = tk.Label(time_frame, text=f"{self.time_var.get()}",
+                               font=('Arial', 12, 'bold'),
+                               bg='#3498db', fg='white',
+                               width=12, height=1,
+                               relief=tk.RAISED, bd=2
+                               )
+        time_button.pack(side=tk.RIGHT, padx=(10, 0))
+        select_time()
         # Days selection
         days_frame = tk.Frame(auto_checkout_section, bg='#34495e')
         days_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
@@ -1919,23 +2313,7 @@ Do you want to continue?"""
                                    relief=tk.RAISED, bd=1)
         info_section.pack(fill=tk.X, pady=(0, 15))
         
-        info_text = tk.Text(info_section, 
-                           font=('Arial', 10), 
-                           bg='#2c3e50', 
-                           fg='#ecf0f1',
-                           wrap=tk.WORD,
-                           relief=tk.FLAT,
-                           height=4,
-                           state=tk.NORMAL)
-        info_text.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
-        
-        info_content = """Automatic Check-out will automatically check out employees at the specified time on selected days. This feature helps ensure accurate attendance records when employees forget to check out manually.
 
-Note: Employees who are already checked out will not be affected."""
-        
-        info_text.insert(tk.END, info_content)
-        info_text.config(state=tk.DISABLED)
-        
         # Button frame
         button_frame = tk.Frame(main_frame, bg='#2c3e50')
         button_frame.pack(fill=tk.X)
@@ -1943,15 +2321,12 @@ Note: Employees who are already checked out will not be affected."""
         def on_save():
             """Handle save button click"""
             try:
-                # Validate time format
-                time_value = time_entry.get().strip()
-                if auto_checkout_var.get():
-                    try:
-                        from datetime import datetime
-                        datetime.strptime(time_value, "%H:%M")
-                    except ValueError:
-                        CustomDialog.show_error(dialog, "Invalid Time", "Please enter time in HH:MM format (e.g., 18:00)")
-                        return
+                # Get selected time (no validation needed since it's from dropdown)
+               
+                time_value = self.time_var.get().strip()
+                if auto_checkout_var.get() and not time_value:
+                    CustomDialog.show_error(main_frame, "Invalid Time", "Please select a time for auto check-out")
+                    return
                 
                 # Get selected days
                 selected_days = []
@@ -1968,40 +2343,35 @@ Note: Employees who are already checked out will not be affected."""
                 
                 # Save configuration
                 if self.save_attendance_config(new_config):
-                    CustomDialog.show_info(dialog, "Settings Saved", "Attendance settings have been saved successfully!")
-                    dialog.destroy()
+                   
+                    self.cleanup_keyboards()
+                    # Go back to main menu
+                    for widget in self.menu_window.winfo_children():
+                        widget.destroy()
+                    self.show_menu()
                 else:
-                    CustomDialog.show_error(dialog, "Save Error", "Failed to save attendance settings!")
+                    CustomDialog.show_error(self.menu_window, "Save Error", "Failed to save attendance settings!")
                     
             except Exception as e:
-                CustomDialog.show_error(dialog, "Error", f"Failed to save settings: {e}")
+                CustomDialog.show_error(self.menu_window, "Error", f"Failed to save settings: {e}")
         
         def on_cancel():
             """Handle cancel button click"""
-            dialog.destroy()
+            
+            self.cleanup_keyboards()
+            # Go back to main menu
+            for widget in self.menu_window.winfo_children():
+                widget.destroy()
+            self.show_menu()
         
         # Save button
-        save_btn = tk.Button(button_frame, text="Save Settings", 
-                            command=on_save,
-                            font=('Arial', 14, 'bold'),
-                            bg='#27ae60', fg='white',
-                            width=15, height=2,
-                            relief=tk.RAISED, bd=3,
-                            cursor='hand2')
-        save_btn.pack(side=tk.RIGHT, padx=(10, 0))
-        
-        # Cancel button
-        cancel_btn = tk.Button(button_frame, text="Cancel", 
-                              command=on_cancel,
-                              font=('Arial', 14, 'bold'),
-                              bg='#e74c3c', fg='white',
-                              width=15, height=2,
-                              relief=tk.RAISED, bd=3,
-                              cursor='hand2')
-        cancel_btn.pack(side=tk.RIGHT)
+    
         
         # Handle window close
-        dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+        def on_window_close():
+            self.cleanup_keyboards()
+            on_cancel()
+        self.menu_window.protocol("WM_DELETE_WINDOW", on_window_close)
         
         # Bind Enter and Escape keys
         def on_enter(event):
@@ -2010,12 +2380,11 @@ Note: Employees who are already checked out will not be affected."""
         def on_escape(event):
             on_cancel()
         
-        dialog.bind('<Return>', on_enter)
-        dialog.bind('<Escape>', on_escape)
+        self.menu_window.bind('<Return>', on_enter)
+        self.menu_window.bind('<Escape>', on_escape)
         
-        # Focus and wait
-        dialog.focus()
-        dialog.wait_window()
+        # Focus on the main frame
+        main_frame.focus()
     
     def show_camera_settings(self):
         """Show camera settings"""
@@ -2046,4 +2415,4 @@ Note: Employees who are already checked out will not be affected."""
     def cleanup_and_exit(self):
         """Exit system"""
         # This method will be implemented with dependency injection
-        pass 
+        pass
