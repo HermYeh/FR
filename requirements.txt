@@ -1,0 +1,20 @@
+# Face Recognition Attendance System - Requirements
+
+# Computer Vision & Image Processing
+opencv-python>=4.8.0,<5.0.0
+Pillow>=9.0.0,<11.0.0
+numpy>=1.21.0,<2.0.0
+
+# Machine Learning & Face Recognition
+torch>=1.13.0,<3.0.0
+torchvision>=0.14.0,<1.0.0
+facenet-pytorch>=2.5.0,<3.0.0
+scikit-learn>=1.0.0,<2.0.0
+
+# Web Framework
+Flask>=2.0.0,<3.0.0
+
+# Note: tkinter is included with Python standard library
+# Note: The following are built-in Python modules (no installation needed):
+# - json, os, time, datetime, threading, sqlite3, csv, pickle
+# - typing, collections, gc, subprocess, sys, argparse, shutil

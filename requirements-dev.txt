@@ -1,0 +1,21 @@
+# Face Recognition Attendance System - Development Requirements
+# Includes all production dependencies plus development tools
+
+# Include production requirements
+-r requirements.txt
+
+# Development & Testing Tools
+pytest>=7.0.0,<8.0.0
+pytest-cov>=4.0.0,<5.0.0
+black>=22.0.0,<24.0.0
+flake8>=5.0.0,<7.0.0
+mypy>=1.0.0,<2.0.0
+
+# Optional GPU Support
+# Uncomment if you have CUDA-compatible GPU:
+# torch>=1.13.0+cu117
+# torchvision>=0.14.0+cu117
+
+# Documentation
+# sphinx>=5.0.0,<7.0.0
+# sphinx-rtd-theme>=1.0.0,<2.0.0
