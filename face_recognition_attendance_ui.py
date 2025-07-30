@@ -50,7 +50,7 @@ class OptimizedFaceRecognitionAttendanceUI:
         self.camera_handler = CameraHandler()
         self.training_manager = TrainingManager()
         self.attendance_manager = AttendanceManager()
-        self.file_manager = FileManager()
+        self.file_manager = FileManager(self.camera_handler)
         self.menu_manager = MenuManager()
       
         # Core variables
@@ -76,7 +76,7 @@ class OptimizedFaceRecognitionAttendanceUI:
             self.root.x, self.root.y = event.x, event.y
             if self.root.x != event.x and self.root.y != event.y:
                 self.root.event_generate('<Motion>', x=self.root.x, y=self.root.y, warp=True)
-                self.root.event_generate('<Button-1>', x=self.root.x, y=self.root.y, warp=True)
+                
             #else:
                 #print(f"touch at {self.root.x}, {self.root.y}")
            #print(f"touch at {self.root.x}, {self.root.y}")
@@ -224,6 +224,8 @@ class OptimizedFaceRecognitionAttendanceUI:
     
     def show_main_menu_window(self):
         # Pause video processing
+        
+        self.menu_manager.show_main_menu_window(self.root)
         self.camera_handler.video_paused = True
         print("Video processing paused for menu")
     
@@ -233,23 +235,26 @@ class OptimizedFaceRecognitionAttendanceUI:
 
         # Set callback functions for menu manager
         self.menu_manager.export_attendance_report = lambda: self.attendance_manager.export_attendance_report(self.root)
-        self.menu_manager.show_camera_settings = lambda: self.file_manager.show_camera_settings(self.root)
+        self.menu_manager.show_camera_settings = lambda: self.file_manager.show_camera_settings(self.root,self.menu_manager)
         self.menu_manager.show_recognition_settings = lambda: self.file_manager.show_recognition_settings(self.root)
         self.menu_manager.show_database_settings = lambda: self.file_manager.show_database_settings(self.root, self.attendance_manager)
         self.menu_manager.reset_system = lambda: self.reset_system()
         self.menu_manager.cleanup_and_exit = self.cleanup_and_exit
         setattr(self.menu_manager, '_injected_start_capture', lambda menu_window: self.start_capture(menu_window))
         setattr(self.menu_manager, '_capture_injected', True)
+        
+        # Bind camera handler to menu manager
+        self.menu_manager.camera_handler = self.camera_handler
   
         # Show menu and set close callback
-        original_close = self.menu_manager.close_menu_window
-        self.menu_manager.close_menu_window = lambda: self.close_menu_and_resume_video(original_close)
+        self.menu_manager.menu_close = lambda: self.close_menu_and_resume_video(self.camera_handler)
+
         
-        self.menu_manager.show_main_menu_window(self.root)
+       
     
-    def close_menu_and_resume_video(self, original_close):
-        original_close()
-        self.camera_handler.video_paused = False
+    def close_menu_and_resume_video(self,camera_handler):
+      
+        camera_handler.video_paused = False
         print("Video processing resumed")
     
     def reset_system(self):

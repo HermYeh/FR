@@ -26,30 +26,30 @@ class CustomDialog:
     @staticmethod
     def _show_dialog(parent, title, message, dialog_type):
         """Internal method to create and show dialog"""
-        dialog = tk.Toplevel(parent,height = 400,width = 400)
+        dialog = tk.Toplevel(parent,height = 200,width = 200)
         dialog.grab_set()
         dialog.title(title)
         dialog.configure(bg='#2c3e50')
         dialog.resizable(False, False)
         dialog.transient(parent)
-        
+    
         # Center dialog relative to parent
         dialog.update_idletasks()
         width =400
         height = 400
-        
+        dialog.geometry(f"{600}x{400}+{10}+{200}")
         # Get parent window position and size
         parent.update_idletasks()
         parent_x = parent.winfo_x()
         parent_y = parent.winfo_y()
         parent_width = parent.winfo_width()
         parent_height = parent.winfo_height()
-        
+        print(parent_width,parent_height)
+        print(parent_x,parent_y)
         # Calculate center position relative to parent
-        x = parent_x + (parent_width - width) // 3
-        y = parent_y + (parent_height - height) // 3
-        dialog.resizable(True, True)
-        dialog.minsize(400, 400)  
+        x = parent_x  // 2
+        y = parent_y// 2
+        
         # Main frame
         main_frame = tk.Frame(dialog, bg='#2c3e50')
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)

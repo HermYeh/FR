@@ -98,7 +98,7 @@ class MenuManager:
         self.menu_window = tk.Toplevel(root)
         self.menu_window.grab_set()  
         self.menu_window.transient(root)
-       
+
 
         self.menu_window.title("TS Ma's Attendance System")
         self.menu_window.configure(bg='#2c3e50')
@@ -110,10 +110,10 @@ class MenuManager:
         screen_height = root.winfo_screenheight()
         center_x = int(screen_width/2 - window_width/2)
         center_y = int(screen_height/2 - window_height/2)
-        self.menu_window.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+        self.menu_window.geometry(f'{screen_width}x{window_height}+{center_x}+{center_y}')
         # Make window resizable for user flexibility
         self.menu_window.resizable(True, True)
-        self.menu_window.minsize(800, 600)  # Set minimum size
+        self.menu_window.minsize(screen_width, 500)  # Set minimum size
         self.menu_window.protocol("WM_DELETE_WINDOW", self.close_menu_window)
 
         # Center the window
@@ -122,7 +122,7 @@ class MenuManager:
     def show_menu(self):
         # Main container
         main_frame = tk.Frame(self.menu_window, bg='#2c3e50')
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
     
         # Title (larger font)
         title_label = tk.Label(main_frame, text="Main Menu", 
@@ -265,19 +265,22 @@ class MenuManager:
         exit_btn = tk.Button(buttons_frame, text="Exit System", 
                             command=self.cleanup_and_exit,
                             bg='#e74c3c', fg='white', **button_config)
-        exit_btn.pack(side=tk.LEFT)
+        exit_btn.pack(side=tk.LEFT ,padx=(0, 10))
         
         # Close Menu button with click protection
         close_btn = tk.Button(buttons_frame, text="Close Menu", 
-                             command=self.close_menu_window,
+                             command=lambda: self.close_menu_window(),
                              bg='#95a5a6', fg='white', **button_config)
         close_btn.pack(side=tk.LEFT, padx=(0, 10))
         close_btn.focus_set()
     
     def close_menu_window(self):
+        # Resume video processing when menu closes
+        if hasattr(self, 'camera_handler') and self.camera_handler:
+            self.camera_handler.video_paused = False
+            print("Video processing resumed")
         if self.menu_window:
             self.menu_window.destroy()
-    
     
     def show_employee(self, parent):
         parent.destroy()

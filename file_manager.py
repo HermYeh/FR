@@ -12,8 +12,9 @@ if TYPE_CHECKING:
 class FileManager:
     """Handles file operations and data management"""
     
-    def __init__(self):
+    def __init__(self,camera_handler):
         self.app_instance: Optional['OptimizedFaceRecognitionAttendanceUI'] = None
+        self.camera_handler = camera_handler
 
     
     def create_directories(self):
@@ -117,43 +118,19 @@ class FileManager:
                 return False
         return False
     
-    def show_camera_settings(self, root):
+    def show_camera_settings(self, root,menu_manager):
         """Show dynamic camera settings dialog"""
-        self.show_camera_settings_dialog(root)
+        for widget in menu_manager.menu_window.winfo_children():
+                widget.destroy()
+        self.show_camera_settings_dialog(root,menu_manager)
     
-    def show_camera_settings_dialog(self, root):
+    def show_camera_settings_dialog(self, root,menu_manager):
         """Show comprehensive camera settings dialog with editable fields"""
         # Create dialog window
-        dialog = tk.Toplevel(root)
-        dialog.grab_set()
-        dialog.title("Camera Settings")
-        dialog.configure(bg='#2c3e50')
-        dialog.resizable(True, True)
-        dialog.transient(root)
-        
-        # Set dialog size
-        dialog.update_idletasks()
-        width = 800
-        height = 700
-        
-        # Center dialog relative to parent
-        if root:
-            root.update_idletasks()
-            parent_x = root.winfo_x()
-            parent_y = root.winfo_y()
-            parent_width = root.winfo_width()
-            parent_height = root.winfo_height()
-        else:
-            parent_x = parent_y = parent_width = parent_height = 0
-        
-        # Calculate center position relative to parent
-        x = parent_x + (parent_width - width) // 2
-        y = parent_y + (parent_height - height) // 2
-        
-        dialog.geometry(f"{width}x{height}+{x}+{y}")
-        
+   
+ 
         # Main frame with scrollbar
-        main_frame = tk.Frame(dialog, bg='#2c3e50')
+        main_frame = tk.Frame(menu_manager.menu_window, bg='#2c3e50')
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Title
@@ -207,40 +184,41 @@ class FileManager:
         def on_save():
             """Save all settings"""
             if self.save_all_settings():
-                CustomDialog.show_info(dialog, "Settings Saved", 
+                CustomDialog.show_info(menu_manager.menu_window, "Settings Saved", 
                                      "Camera settings have been saved successfully.\n\n"
                                      "Changes will take effect after restarting the camera.")
-                dialog.destroy()
+                on_cancel()
             else:
-                CustomDialog.show_error(dialog, "Save Error", 
+                CustomDialog.show_error(menu_manager.menu_window, "Save Error", 
                                       "Failed to save camera settings.\n\n"
                                       "Please check your input values and try again.")
         
         def on_reset():
             """Reset to default settings"""
-            result = CustomDialog.ask_yes_no(dialog, "Reset Settings", 
+            result = CustomDialog.ask_yes_no(menu_manager.menu_window, "Reset Settings", 
                                            "Reset all camera settings to default values?\n\n"
                                            "This action cannot be undone.")
             if result:
                 camera_config.reset_to_defaults()
                 self.load_settings_into_ui()
-                CustomDialog.show_info(dialog, "Settings Reset", 
+                CustomDialog.show_info(menu_manager.menu_window, "Settings Reset", 
                                      "Camera settings have been reset to default values.")
         
         def on_apply():
             """Apply settings without closing dialog"""
             if self.save_all_settings():
-                CustomDialog.show_info(dialog, "Settings Applied", 
+                CustomDialog.show_info(menu_manager.menu_window, "Settings Applied", 
                                      "Camera settings have been applied.\n\n"
                                      "Changes will take effect after restarting the camera.")
             else:
-                CustomDialog.show_error(dialog, "Apply Error", 
+                CustomDialog.show_error(menu_manager.menu_window, "Apply Error", 
                                       "Failed to apply camera settings.\n\n"
                                       "Please check your input values and try again.")
         
         def on_cancel():
             """Close dialog without saving"""
-            dialog.destroy()
+            menu_manager.menu_window.destroy()
+            self.camera_handler.video_paused = False
         
         # Reset button
         reset_btn = tk.Button(button_frame, text="Reset to Defaults", 
@@ -283,14 +261,12 @@ class FileManager:
         cancel_btn.pack(side=tk.RIGHT, padx=(0, 10))
         
         # Handle window close
-        dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+        menu_manager.menu_window.protocol("WM_DELETE_WINDOW", on_cancel)
         
         # Load current settings into UI
         self.load_settings_into_ui()
         
-        # Focus and wait
-        dialog.focus()
-        dialog.wait_window()
+ 
     
     def create_camera_hardware_settings(self, parent):
         """Create camera hardware settings section"""

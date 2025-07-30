@@ -273,7 +273,7 @@ class AttendanceManager:
             
             # Write to CSV
             with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
-                fieldnames = ['name', 'date', 'check_in_time', 'check_out_time', 'total_hours']
+                fieldnames = ['name', 'date', 'check_in_time', 'check_out_time', 'total_hours','status']
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 
                 writer.writeheader()
