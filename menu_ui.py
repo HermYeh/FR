@@ -271,7 +271,7 @@ class MenuManager:
         close_btn = tk.Button(buttons_frame, text="Close Menu", 
                              command=self.close_menu_window,
                              bg='#95a5a6', fg='white', **button_config)
-        close_btn.pack(side=tk.RIGHT)
+        close_btn.pack(side=tk.LEFT, padx=(0, 10))
         close_btn.focus_set()
     
     def close_menu_window(self):
